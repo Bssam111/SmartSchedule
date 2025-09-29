@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider = "prisma-client-js"
 }
 
@@ -8,14 +8,16 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  role      Role
-  password  String
-  createdAt DateTime @default(now())
-  preferences Preference[]
+  id            String        @id @default(cuid())
+  name          String
+  email         String        @unique
+  role          Role
+  password      String
+  createdAt     DateTime      @default(now())
+  preferences   Preference[]
   notifications Notification[]
+  sectionsTaught Section[]    @relation("SectionInstructor")
+  assignments    Assignment[]  @relation("AssignmentInstructor")
 }
 
 enum Role {
@@ -46,7 +48,7 @@ model Section {
   capacity     Int
   room         Room?    @relation(fields: [roomId], references: [id])
   roomId       String?
-  instructor   User?    @relation(fields: [instructorId], references: [id])
+  instructor   User?    @relation("SectionInstructor", fields: [instructorId], references: [id])
   instructorId String?
   level        Level    @relation(fields: [levelId], references: [id])
   levelId      String
@@ -62,20 +64,21 @@ model Level {
 }
 
 model Room {
-  id       String   @id @default(cuid())
-  name     String   @unique
-  capacity Int
-  type     String
-  sections Section[]
+  id          String       @id @default(cuid())
+  name        String       @unique
+  capacity    Int
+  type        String
+  sections    Section[]
+  assignments Assignment[]
 }
 
 model TimeSlot {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   dayOfWeek      Int
   start          String
   end            String
-  isMidtermBlock Boolean  @default(false)
-  isBreak        Boolean  @default(false)
+  isMidtermBlock Boolean      @default(false)
+  isBreak        Boolean      @default(false)
   assignments    Assignment[]
 }
 
@@ -87,27 +90,28 @@ model Rule {
 }
 
 model Preference {
-  id        String  @id @default(cuid())
-  user      User    @relation(fields: [userId], references: [id])
-  userId    String
-  electives String[]
+  id          String  @id @default(cuid())
+  user        User    @relation(fields: [userId], references: [id])
+  userId      String
+  electives   String[]
   constraints Json
 }
 
 model IrregularStudent {
-  id             String   @id @default(cuid())
-  studentName    String
+  id               String   @id @default(cuid())
+  studentName      String
   remainingCourses String[]
-  priorityNotes  String?
+  priorityNotes    String?
 }
 
 model Schedule {
-  id        String   @id @default(cuid())
-  version   Int
-  status    ScheduleStatus
-  createdBy String
-  createdAt DateTime @default(now())
+  id          String       @id @default(cuid())
+  version     Int
+  status      ScheduleStatus
+  createdBy   String
+  createdAt   DateTime     @default(now())
   assignments Assignment[]
+  feedbacks   Feedback[]
 }
 
 enum ScheduleStatus {
@@ -118,34 +122,25 @@ enum ScheduleStatus {
 }
 
 model Assignment {
-  id           String   @id @default(cuid())
-  schedule     Schedule @relation(fields: [scheduleId], references: [id])
+  id           String    @id @default(cuid())
+  schedule     Schedule  @relation(fields: [scheduleId], references: [id])
   scheduleId   String
-  section      Section  @relation(fields: [sectionId], references: [id])
+  section      Section   @relation(fields: [sectionId], references: [id])
   sectionId    String
-  instructor   User?    @relation(fields: [instructorId], references: [id])
+  instructor   User?     @relation("AssignmentInstructor", fields: [instructorId], references: [id])
   instructorId String?
-  timeslot     TimeSlot @relation(fields: [timeslotId], references: [id])
+  timeslot     TimeSlot  @relation(fields: [timeslotId], references: [id])
   timeslotId   String
-  room         Room     @relation(fields: [roomId], references: [id])
+  room         Room      @relation(fields: [roomId], references: [id])
   roomId       String
 }
 
 model Feedback {
-  id         String   @id @default(cuid())
-  schedule   Schedule @relation(fields: [scheduleId], references: [id])
+  id         String    @id @default(cuid())
+  schedule   Schedule  @relation(fields: [scheduleId], references: [id])
   scheduleId String
   byRole     Role
   text       String
   rating     Int?
-  createdAt  DateTime @default(now())
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  type      String
-  payload   Json
-  readAt    DateTime?
+  createdAt  DateTime  @default(now())
 }
