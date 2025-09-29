@@ -54,6 +54,31 @@ app.post("/api/import/levels", upload.single("file"), async (req, res) => {
   res.json({ imported: rows.length });
 });
 
+// Imports: external time slots CSV
+app.post("/api/import/slots", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "file required" });
+  const csv = req.file.buffer.toString("utf8");
+  const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
+  for (const t of rows) {
+    await prisma.timeSlot.upsert({
+      where: { id: t.id },
+      update: { dayOfWeek: Number(t.dayOfWeek), start: t.start, end: t.end, isMidtermBlock: String(t.isMidtermBlock).toLowerCase() === "true", isBreak: String(t.isBreak).toLowerCase() === "true" },
+      create: { id: t.id, dayOfWeek: Number(t.dayOfWeek), start: t.start, end: t.end, isMidtermBlock: String(t.isMidtermBlock).toLowerCase() === "true", isBreak: String(t.isBreak).toLowerCase() === "true" },
+    });
+  }
+  res.json({ imported: rows.length });
+});
+
+// Irregular students secure form (assume scheduler/registrar role check later)
+app.post("/api/irregular", async (req, res) => {
+  const Body = z.object({ id: z.string().default(''), studentName: z.string(), remainingCourses: z.array(z.string()), priorityNotes: z.string().optional() });
+  const parsed = Body.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const { id, ...rest } = parsed.data;
+  const created = await prisma.irregularStudent.upsert({ where: { id: id || rest.studentName }, update: rest, create: { id: id || rest.studentName, ...rest } });
+  res.json(created);
+});
+
 // Rules: list and update
 app.get("/api/rules", async (_req, res) => {
   const rules = await prisma.rule.findMany();
@@ -99,6 +124,18 @@ app.post("/api/generate", async (req, res) => {
   }
   res.json({ scheduleId: schedule.id, version });
 });
+
+app.post('/api/schedules/:id/submitForLoadReview', async (req, res) => {
+  const id = String(req.params.id)
+  await prisma.schedule.update({ where: { id }, data: { status: 'review' } })
+  res.json({ id, status: 'review' })
+})
+
+app.post('/api/schedules/:id/submitForStudentReview', async (req, res) => {
+  const id = String(req.params.id)
+  await prisma.schedule.update({ where: { id }, data: { status: 'studentReview' } })
+  res.json({ id, status: 'studentReview' })
+})
 
 app.get("/api/recommendations", async (req, res) => {
   const studentId = String(req.query.studentId || "");
