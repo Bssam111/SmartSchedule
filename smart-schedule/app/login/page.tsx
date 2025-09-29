@@ -7,6 +7,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('student')
 
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    // Redirect based on role
+    if (role === 'student') {
+      window.location.href = '/student/dashboard'
+    } else if (role === 'faculty') {
+      window.location.href = '/faculty/dashboard'
+    } else if (role === 'committee') {
+      window.location.href = '/committee/dashboard'
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
@@ -15,7 +27,7 @@ export default function LoginPage() {
           <p className="text-gray-600">University Scheduling System</p>
         </div>
         
-        <form className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <input
