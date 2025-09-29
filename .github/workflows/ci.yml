@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: smartschedule
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/smartschedule
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - name: Install root deps
+        run: npm ci
+      - name: Install web deps
+        run: npm ci
+        working-directory: smart-schedule
+      - name: Install api deps
+        run: npm ci
+        working-directory: apps/api
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: apps/api
+      - name: Migrate DB
+        run: npx prisma migrate deploy
+        working-directory: apps/api
+      - name: Seed DB
+        run: npm run seed:all
+        working-directory: apps/api
+      - name: Typecheck web
+        run: npm run build --workspaces=false --workspace smart-schedule --if-present
+      - name: Build api
+        run: npm run build --workspaces=false --workspace @smartschedule/api --if-present
