@@ -1,0 +1,11 @@
+﻿node_modules/
+.env
+.DS_Store
+**/.next
+**/dist
+**/build
+**/.turbo
+**/coverage
+**/.vercel
+**/.parcel-cache
+**/.cache

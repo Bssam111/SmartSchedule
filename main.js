@@ -1,1 +1,0 @@
-const SWE="just for fork";

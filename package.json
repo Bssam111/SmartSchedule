@@ -1,0 +1,26 @@
+{
+  "name": "smart-schedule-monorepo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bssam111/SmartSchedule.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Bssam111/SmartSchedule/issues"
+  },
+  "homepage": "https://github.com/Bssam111/SmartSchedule#readme",
+  "private": "true",
+  "workspaces": [
+    "smart-schedule",
+    "packages/*",
+    "apps/*"
+  ]
+}
