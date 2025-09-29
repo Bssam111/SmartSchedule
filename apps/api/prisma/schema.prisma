@@ -1,0 +1,151 @@
+﻿generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      Role
+  password  String
+  createdAt DateTime @default(now())
+  preferences Preference[]
+  notifications Notification[]
+}
+
+enum Role {
+  student
+  faculty
+  scheduler
+  loadCommittee
+  registrar
+}
+
+model Course {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  level        Level    @relation(fields: [levelId], references: [id])
+  levelId      String
+  credit       Int
+  isElective   Boolean  @default(false)
+  prerequisites String[]
+  sections     Section[]
+}
+
+model Section {
+  id           String   @id @default(cuid())
+  course       Course   @relation(fields: [courseId], references: [id])
+  courseId     String
+  number       Int
+  capacity     Int
+  room         Room?    @relation(fields: [roomId], references: [id])
+  roomId       String?
+  instructor   User?    @relation(fields: [instructorId], references: [id])
+  instructorId String?
+  level        Level    @relation(fields: [levelId], references: [id])
+  levelId      String
+  assignments  Assignment[]
+}
+
+model Level {
+  id                 String   @id @default(cuid())
+  name               String   @unique
+  studentCountTarget Int
+  courses            Course[]
+  sections           Section[]
+}
+
+model Room {
+  id       String   @id @default(cuid())
+  name     String   @unique
+  capacity Int
+  type     String
+  sections Section[]
+}
+
+model TimeSlot {
+  id             String   @id @default(cuid())
+  dayOfWeek      Int
+  start          String
+  end            String
+  isMidtermBlock Boolean  @default(false)
+  isBreak        Boolean  @default(false)
+  assignments    Assignment[]
+}
+
+model Rule {
+  id     String  @id @default(cuid())
+  key    String
+  value  Json
+  active Boolean @default(true)
+}
+
+model Preference {
+  id        String  @id @default(cuid())
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String
+  electives String[]
+  constraints Json
+}
+
+model IrregularStudent {
+  id             String   @id @default(cuid())
+  studentName    String
+  remainingCourses String[]
+  priorityNotes  String?
+}
+
+model Schedule {
+  id        String   @id @default(cuid())
+  version   Int
+  status    ScheduleStatus
+  createdBy String
+  createdAt DateTime @default(now())
+  assignments Assignment[]
+}
+
+enum ScheduleStatus {
+  draft
+  review
+  studentReview
+  final
+}
+
+model Assignment {
+  id           String   @id @default(cuid())
+  schedule     Schedule @relation(fields: [scheduleId], references: [id])
+  scheduleId   String
+  section      Section  @relation(fields: [sectionId], references: [id])
+  sectionId    String
+  instructor   User?    @relation(fields: [instructorId], references: [id])
+  instructorId String?
+  timeslot     TimeSlot @relation(fields: [timeslotId], references: [id])
+  timeslotId   String
+  room         Room     @relation(fields: [roomId], references: [id])
+  roomId       String
+}
+
+model Feedback {
+  id         String   @id @default(cuid())
+  schedule   Schedule @relation(fields: [scheduleId], references: [id])
+  scheduleId String
+  byRole     Role
+  text       String
+  rating     Int?
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  type      String
+  payload   Json
+  readAt    DateTime?
+}
