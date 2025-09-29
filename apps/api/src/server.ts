@@ -120,6 +120,49 @@ app.get("/api/dashboard/course", async (_req, res) => {
   res.json(payload);
 });
 
+// Preferences (Student)
+app.post("/api/preferences", async (req, res) => {
+  const Body = z.object({ userId: z.string(), electives: z.array(z.string()), constraints: z.any().default({}) });
+  const parsed = Body.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const { userId, electives, constraints } = parsed.data;
+  const pref = await prisma.preference.upsert({
+    where: { id: `pref-${userId}` },
+    update: { userId, electives, constraints },
+    create: { id: `pref-${userId}`, userId, electives, constraints },
+  });
+  res.json(pref);
+});
+
+// Faculty availability (simple)
+app.post("/api/faculty/availability", async (req, res) => {
+  const Body = z.object({ userId: z.string(), availability: z.array(z.object({ dayOfWeek: z.number(), start: z.string(), end: z.string() })) });
+  const parsed = Body.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const { userId, availability } = parsed.data;
+  const key = `availability-${userId}`;
+  const rec = await prisma.rule.upsert({ where: { id: key }, update: { key: "availability", value: availability, active: true }, create: { id: key, key: "availability", value: availability, active: true } });
+  res.json(rec);
+});
+
+// Notifications (stub): log to DB
+app.post("/api/notify", async (req, res) => {
+  const Body = z.object({ userId: z.string(), type: z.string(), payload: z.any() });
+  const parsed = Body.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const note = await prisma.notification.create({ data: parsed.data });
+  res.json(note);
+});
+
+// Feedback on a schedule
+app.post("/api/feedback", async (req, res) => {
+  const Body = z.object({ scheduleId: z.string(), byRole: z.enum(["student", "faculty", "scheduler", "loadCommittee", "registrar"]), text: z.string(), rating: z.number().int().min(1).max(5).optional() });
+  const parsed = Body.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const fb = await prisma.feedback.create({ data: parsed.data });
+  res.json(fb);
+});
+
 const port = Number(process.env.PORT || 4000);
 app.listen(port, () => {
   logger.info({ port }, "API server listening");
