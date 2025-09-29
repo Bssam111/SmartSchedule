@@ -1,21 +1,43 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { useAuth } from '../../components/AuthProvider'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('student')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  
+  const { login } = useAuth()
+  const router = useRouter()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Redirect based on role
-    if (role === 'student') {
-      window.location.href = '/student/dashboard'
-    } else if (role === 'faculty') {
-      window.location.href = '/faculty/dashboard'
-    } else if (role === 'committee') {
-      window.location.href = '/committee/dashboard'
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const result = await login(email, password, role)
+      
+      if (result.success) {
+        // Redirect based on role
+        if (role === 'student') {
+          router.push('/student/dashboard')
+        } else if (role === 'faculty') {
+          router.push('/faculty/dashboard')
+        } else if (role === 'committee') {
+          router.push('/committee/dashboard')
+        }
+      } else {
+        setError(result.error || 'Login failed')
+      }
+    } catch (err) {
+      setError('An unexpected error occurred')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -65,10 +87,17 @@ export default function LoginPage() {
           
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Sign In
+            {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
+          
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
         </form>
         
         <div className="mt-6 text-center">

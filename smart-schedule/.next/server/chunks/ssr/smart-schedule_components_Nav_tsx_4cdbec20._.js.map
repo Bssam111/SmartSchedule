@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/bssam/SmartSchedule/smart-schedule/components/Nav.tsx"],"sourcesContent":["'use client'\r\nimport Link from 'next/link'\r\n\r\nexport function Nav() {\r\n\treturn (\r\n\t\t<nav className=\"w-full border-b bg-white\">\r\n\t\t\t<div className=\"mx-auto max-w-6xl px-4 py-3 flex items-center justify-between\">\r\n\t\t\t\t<Link href=\"/\" className=\"font-semibold\">SmartSchedule</Link>\r\n\t\t\t\t<div className=\"flex gap-4 text-sm\">\r\n\t\t\t\t\t<Link href=\"/imports\">Imports</Link>\r\n\t\t\t\t\t<Link href=\"/rules\">Rules</Link>\r\n\t\t\t\t\t<Link href=\"/generator\">Generator</Link>\r\n\t\t\t\t</div>\r\n\t\t\t</div>\r\n\t\t</nav>\r\n\t)\r\n}\r\n"],"names":[],"mappings":";;;;;AACA;AADA;;;AAGO,SAAS;IACf,qBACC,mQAAC;QAAI,WAAU;kBACd,cAAA,mQAAC;YAAI,WAAU;;8BACd,mQAAC,4LAAI;oBAAC,MAAK;oBAAI,WAAU;8BAAgB;;;;;;8BACzC,mQAAC;oBAAI,WAAU;;sCACd,mQAAC,4LAAI;4BAAC,MAAK;sCAAW;;;;;;sCACtB,mQAAC,4LAAI;4BAAC,MAAK;sCAAS;;;;;;sCACpB,mQAAC,4LAAI;4BAAC,MAAK;sCAAa;;;;;;;;;;;;;;;;;;;;;;;AAK7B","debugId":null}}]
+}

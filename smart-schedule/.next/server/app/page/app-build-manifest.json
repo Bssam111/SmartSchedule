@@ -1,0 +1,21 @@
+{
+  "pages": {
+    "/page": [
+      "static/chunks/[root-of-the-server]__e08dcc50._.css",
+      "static/chunks/9be39_next_dist_0eb42bd7._.js",
+      "static/chunks/smart-schedule_app_layout_tsx_ca15ab1f._.js",
+      "static/chunks/9be39_next_dist_client_components_builtin_global-error_a31dd9b4.js",
+      "static/chunks/9be39_next_dist_9fbc4ddf._.js",
+      "static/chunks/smart-schedule_app_page_tsx_a31dd9b4._.js",
+      "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_5c00e280._.js",
+      "static/chunks/9be39_next_dist_compiled_react-dom_69c35d5b._.js",
+      "static/chunks/9be39_next_dist_compiled_next-devtools_index_b531fe15.js",
+      "static/chunks/9be39_next_dist_compiled_634ddfe0._.js",
+      "static/chunks/9be39_next_dist_client_511d08cf._.js",
+      "static/chunks/9be39_next_dist_fd7ca12e._.js",
+      "static/chunks/9be39_@swc_helpers_cjs_9830714b._.js",
+      "static/chunks/smart-schedule_a0ff3932._.js",
+      "static/chunks/turbopack-smart-schedule_16f3fd2a._.js"
+    ]
+  }
+}

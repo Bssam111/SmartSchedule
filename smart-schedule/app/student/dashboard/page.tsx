@@ -1,8 +1,12 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { ProtectedRoute } from '../../../components/ProtectedRoute'
+import { useAuth } from '../../../components/AuthProvider'
 
 export default function StudentDashboard() {
+  const { getCurrentUser, logout } = useAuth()
+  const user = getCurrentUser()
   const [activeTab, setActiveTab] = useState('overview')
   const [notifications] = useState([
     { id: 1, message: 'New schedule draft available', time: '2 hours ago', unread: true },
@@ -10,7 +14,8 @@ export default function StudentDashboard() {
   ])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ProtectedRoute requiredRole="student">
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -29,7 +34,13 @@ export default function StudentDashboard() {
                   )}
                 </button>
               </div>
-              <div className="text-sm text-gray-600">John Student</div>
+              <div className="text-sm text-gray-600">{user?.name || 'Student'}</div>
+              <button 
+                onClick={logout}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>
@@ -99,5 +110,6 @@ export default function StudentDashboard() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   )
 }
