@@ -6,15 +6,49 @@ import pino from "pino";
 import pinoHttp from "pino-http";
 import { z } from "zod";
 import { PrismaClient } from "@prisma/client";
+import multer from "multer";
+import { parse } from "csv-parse/sync";
 
 const app = express();
 const logger = pino({ level: process.env.LOG_LEVEL || "info" });
 app.use(cors());
 app.use(express.json());
 app.use(pinoHttp({ logger }));
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "api", time: new Date().toISOString() });
+});
+
+// Imports: levels CSV
+app.post("/api/import/levels", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "file required" });
+  const csv = req.file.buffer.toString("utf8");
+  const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
+  for (const r of rows) {
+    await prisma.level.upsert({
+      where: { id: r.id },
+      update: { name: r.name, studentCountTarget: Number(r.studentCountTarget) },
+      create: { id: r.id, name: r.name, studentCountTarget: Number(r.studentCountTarget) },
+    });
+  }
+  res.json({ imported: rows.length });
+});
+
+// Rules: list and update
+app.get("/api/rules", async (_req, res) => {
+  const rules = await prisma.rule.findMany();
+  res.json(rules);
+});
+
+app.put("/api/rules/:id", async (req, res) => {
+  const id = String(req.params.id);
+  const Body = z.object({ key: z.string(), value: z.any(), active: z.boolean().default(true) });
+  const parsed = Body.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const { key, value, active } = parsed.data;
+  const rule = await prisma.rule.upsert({ where: { id }, update: { key, value, active }, create: { id, key, value, active } });
+  res.json(rule);
 });
 
 const prisma = new PrismaClient();
