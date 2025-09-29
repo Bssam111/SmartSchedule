@@ -14,7 +14,7 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
-  role      Role     @default(STUDENT)
+  role      UserRole @default(STUDENT)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -24,6 +24,7 @@ model User {
   assignments  Assignment[]
   feedback     Feedback[]
   notifications Notification[]
+  roles        Role[]
 
   @@map("users")
 }
@@ -151,15 +152,17 @@ model IrregularStudent {
 }
 
 model Schedule {
-  id        String         @id @default(cuid())
+  id        String            @id @default(cuid())
   name      String
-  status    ScheduleStatus @default(DRAFT)
-  version   Int            @default(1)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  status    ScheduleStatusEnum @default(DRAFT)
+  version   Int               @default(1)
+  statusId  String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
 
   // Relations
   assignments Assignment[]
+  statusRef  ScheduleStatus? @relation(fields: [statusId], references: [id])
 
   @@map("schedules")
 }
@@ -179,6 +182,7 @@ model Assignment {
   scheduleId String
   sectionId  String
   studentId  String
+  courseId   String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -186,6 +190,7 @@ model Assignment {
   schedule Schedule @relation(fields: [scheduleId], references: [id])
   section  Section  @relation(fields: [sectionId], references: [id])
   student  User     @relation(fields: [studentId], references: [id])
+  course   Course?  @relation(fields: [courseId], references: [id])
 
   @@map("assignments")
 }
@@ -220,13 +225,13 @@ model Notification {
   @@map("notifications")
 }
 
-enum Role {
+enum UserRole {
   STUDENT
   FACULTY
   COMMITTEE
 }
 
-enum ScheduleStatus {
+enum ScheduleStatusEnum {
   DRAFT
   UNDER_REVIEW
   APPROVED
