@@ -1,0 +1,6 @@
+id,courseId,number,capacity,roomId,instructorId,levelId
+S1,C1,1,25,R1,U2,L1
+S2,C2,1,25,R1,U2,L1
+S3,C3,1,25,R2,U2,L2
+
+

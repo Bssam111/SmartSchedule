@@ -1,0 +1,7 @@
+id,name,email,role,password
+U1,Student One,student1@example.com,student,$2a$10$abcdefghijklmnopqrstuv
+U2,Faculty One,faculty1@example.com,faculty,$2a$10$abcdefghijklmnopqrstuv
+U3,Scheduler,scheduler@example.com,scheduler,$2a$10$abcdefghijklmnopqrstuv
+U4,Load Committee,load@example.com,loadCommittee,$2a$10$abcdefghijklmnopqrstuv
+
+

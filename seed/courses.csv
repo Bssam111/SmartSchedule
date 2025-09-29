@@ -1,0 +1,7 @@
+id,code,name,levelId,credit,isElective,prerequisites
+C1,MATH101,Calculus I,L1,3,false,
+C2,PHYS101,Physics I,L1,3,false,
+C3,CS201,Data Structures,L2,3,false,MATH101
+C4,ART110,Intro to Art,L1,2,true,
+
+

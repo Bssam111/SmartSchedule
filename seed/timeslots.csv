@@ -1,0 +1,7 @@
+id,dayOfWeek,start,end,isMidtermBlock,isBreak
+T1,1,08:00,10:00,false,false
+T2,1,12:00,13:00,false,true
+T3,1,12:00,14:00,true,false
+T4,3,08:00,10:00,false,false
+
+
