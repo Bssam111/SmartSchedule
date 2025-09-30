@@ -19,8 +19,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: false,
     isLoading: true,
   })
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     // Initialize auth service
     const authService = AuthService.getInstance()
     authService.initialize()
@@ -32,6 +35,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return unsubscribe
   }, [])
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return <>{children}</>
+  }
 
   const login = async (email: string, password: string, role: string) => {
     const authService = AuthService.getInstance()

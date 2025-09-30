@@ -1,15 +1,43 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useDialog } from '../../../hooks/useDialog'
+import { useToast } from '../../../hooks/useToast'
 
 export default function FacultyAvailability() {
+  const { success, error } = useToast()
   const [availability, setAvailability] = useState<Record<string, boolean>>({})
-  const [showToast, setShowToast] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [facultyId] = useState('cmg5jf2hc00059gj9jarr69er') // Dr. Smith's actual ID from database
 
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+  useEffect(() => {
+    loadAvailability()
+  }, [])
+
+  const loadAvailability = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/faculty/availability?facultyId=${facultyId}`)
+      const result = await response.json()
+      
+      if (result.success) {
+        setAvailability(result.data)
+      } else {
+        console.error('Error loading availability:', result.error)
+      }
+    } catch (error) {
+      console.error('Error loading availability:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday']
   const timeSlots = [
-    '08:00-10:00', '10:00-12:00', '12:00-14:00', 
-    '14:00-16:00', '16:00-18:00'
+    '08:00-08:50', '09:00-09:50', '10:00-10:50', '11:00-11:50', 
+    '13:00-13:50', '14:00-14:50', '15:00-15:50', '16:00-16:50', 
+    '17:00-17:50', '18:00-18:50', '19:00-19:50'
   ]
 
   const toggleAvailability = (day: string, time: string) => {
@@ -20,10 +48,36 @@ export default function FacultyAvailability() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
+    setSaving(true)
+    
+    try {
+      const response = await fetch('/api/faculty/availability', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          facultyId,
+          availability
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        success('Availability saved successfully!')
+      } else {
+        console.error('Error saving availability:', result.error)
+        error('Error saving availability. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error saving availability:', error)
+      error('Error saving availability. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const getAvailabilityKey = (day: string, time: string) => `${day}-${time}`
@@ -46,7 +100,15 @@ export default function FacultyAvailability() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow-sm p-8">
-          <form onSubmit={handleSubmit} className="space-y-8">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading availability...</p>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-8">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Available Time Slots</h3>
               <p className="text-sm text-gray-600 mb-6">Click on time slots to mark them as available for teaching.</p>
@@ -111,21 +173,17 @@ export default function FacultyAvailability() {
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                disabled={saving}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save Availability
+                {saving ? 'Saving...' : 'Save Availability'}
               </button>
             </div>
-          </form>
+            </form>
+          )}
         </div>
       </div>
 
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
-          Availability saved successfully!
-        </div>
-      )}
     </div>
   )
 }

@@ -1,26 +1,80 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useDialog } from '../../../hooks/useDialog'
+import { useToast } from '../../../hooks/useToast'
 
 export default function StudentPreferences() {
+  const { showDialog } = useDialog()
+  const { success, error } = useToast()
   const [preferences, setPreferences] = useState({
-    electives: ['CS301', 'ART110'],
-    priorities: ['CS301', 'ART110'],
-    notes: 'Prefer morning classes'
+    electives: [],
+    priorities: [],
+    notes: ''
   })
-  const [showToast, setShowToast] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [availableElectives, setAvailableElectives] = useState([])
+  const [studentId] = useState('cmg5jf2h900049gj9gvuvc0zs') // This would come from authentication in a real app
 
-  const availableElectives = [
-    { id: 'CS301', name: 'Advanced Programming', credits: 3 },
-    { id: 'ART110', name: 'Introduction to Art', credits: 2 },
-    { id: 'MATH201', name: 'Calculus II', credits: 4 },
-    { id: 'PHYS102', name: 'Physics II', credits: 3 }
-  ]
+  useEffect(() => {
+    loadPreferences()
+    loadElectives()
+  }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const loadPreferences = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/faculty/availability?facultyId=${studentId}`)
+      const result = await response.json()
+
+      if (result.success) {
+        setPreferences(result.data || { electives: [], priorities: [], notes: '' })
+      }
+    } catch (error) {
+      console.error('Error loading preferences:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadElectives = async () => {
+    try {
+      const response = await fetch('/api/courses')
+      const result = await response.json()
+
+      if (result.success) {
+        setAvailableElectives(result.data)
+      }
+    } catch (error) {
+      console.error('Error loading electives:', error)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
+    try {
+      const response = await fetch('/api/faculty/availability', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          facultyId: studentId,
+          availability: preferences
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        success('Preferences saved successfully!')
+      } else {
+        error('Error saving preferences: ' + result.error)
+      }
+    } catch (error) {
+      console.error('Error saving preferences:', error)
+      error('Error saving preferences. Please try again.')
+    }
   }
 
   return (
@@ -40,7 +94,15 @@ export default function StudentPreferences() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow-sm p-8">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading preferences...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Elective Selection */}
             <div>
@@ -145,15 +207,10 @@ export default function StudentPreferences() {
               </button>
             </div>
           </form>
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
-          Preferences saved successfully!
-        </div>
-      )}
     </div>
   )
 }

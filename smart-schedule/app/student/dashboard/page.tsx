@@ -20,7 +20,25 @@ export default function StudentDashboard() {
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
+              <div className="mt-2 flex items-center space-x-6 text-sm text-gray-600">
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium">University ID:</span>
+                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-mono">
+                    {user?.universityId || 'STU000001'}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium">College:</span>
+                  <span>College of Computer Science</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium">Major:</span>
+                  <span>Computer Science</span>
+                </div>
+              </div>
+            </div>
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <button className="p-2 text-gray-600 hover:text-gray-900 relative">

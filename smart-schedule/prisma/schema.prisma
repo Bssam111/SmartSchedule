@@ -11,12 +11,13 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  role      UserRole @default(STUDENT)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  universityId String?  @unique
+  role        UserRole @default(STUDENT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
   sections     Section[]
@@ -61,7 +62,6 @@ model Section {
   courseId  String
   instructorId String
   roomId    String?
-  timeSlotId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -69,10 +69,25 @@ model Section {
   course     Course     @relation(fields: [courseId], references: [id])
   instructor User       @relation(fields: [instructorId], references: [id])
   room       Room?      @relation(fields: [roomId], references: [id])
-  timeSlot   TimeSlot?  @relation(fields: [timeSlotId], references: [id])
+  meetings   SectionMeeting[]
   assignments Assignment[]
 
   @@map("sections")
+}
+
+model SectionMeeting {
+  id        String   @id @default(cuid())
+  sectionId String
+  dayOfWeek String
+  startTime String
+  endTime   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@map("section_meetings")
 }
 
 model Level {
@@ -102,14 +117,11 @@ model Room {
 
 model TimeSlot {
   id        String   @id @default(cuid())
-  day       String
+  dayOfWeek String
   startTime String
   endTime   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  sections Section[]
 
   @@map("timeslots")
 }

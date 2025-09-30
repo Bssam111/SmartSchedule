@@ -95,17 +95,17 @@ async function main() {
     console.log('⏰ Creating sample time slots...')
     const timeSlot1 = await prisma.timeSlot.create({
       data: {
-        day: 'Monday',
+        dayOfWeek: 'Monday',
         startTime: '09:00',
-        endTime: '10:30',
+        endTime: '09:50',
       },
     })
 
     const timeSlot2 = await prisma.timeSlot.create({
       data: {
-        day: 'Wednesday',
+        dayOfWeek: 'Wednesday',
         startTime: '09:00',
-        endTime: '10:30',
+        endTime: '09:50',
       },
     })
 
@@ -116,7 +116,16 @@ async function main() {
         courseId: course1.id,
         instructorId: faculty.id,
         roomId: room1.id,
-        timeSlotId: timeSlot1.id,
+      },
+    })
+
+    // Create meetings for section1
+    await prisma.sectionMeeting.create({
+      data: {
+        sectionId: section1.id,
+        dayOfWeek: 'Monday',
+        startTime: '09:00',
+        endTime: '09:50',
       },
     })
 
@@ -126,7 +135,16 @@ async function main() {
         courseId: course2.id,
         instructorId: faculty.id,
         roomId: room2.id,
-        timeSlotId: timeSlot2.id,
+      },
+    })
+
+    // Create meetings for section2
+    await prisma.sectionMeeting.create({
+      data: {
+        sectionId: section2.id,
+        dayOfWeek: 'Wednesday',
+        startTime: '09:00',
+        endTime: '09:50',
       },
     })
 

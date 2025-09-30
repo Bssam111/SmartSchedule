@@ -3,6 +3,7 @@ export interface User {
   id: string
   email: string
   name: string
+  universityId?: string
   role: 'student' | 'faculty' | 'committee'
 }
 
