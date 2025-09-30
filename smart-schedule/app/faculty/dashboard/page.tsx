@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { ProtectedRoute } from '../../../components/ProtectedRoute'
+import { useAuth } from '../../../components/AuthProvider'
 
 interface Assignment {
   id: string
@@ -23,6 +25,7 @@ interface Assignment {
 }
 
 export default function FacultyDashboard() {
+  const { getCurrentUser } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,7 +54,8 @@ export default function FacultyDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ProtectedRoute requiredRole="faculty">
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -150,5 +154,6 @@ export default function FacultyDashboard() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   )
 }

@@ -1,8 +1,10 @@
 'use client'
-import { useDialog } from '../hooks/useDialog'
+import { useDialog } from './DialogProvider'
 
 export function Dialog() {
   const { dialog, hideDialog } = useDialog()
+
+  console.log('🔔 Dialog component render - dialog state:', dialog)
 
   if (!dialog.isOpen) return null
 

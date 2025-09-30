@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useDialog } from '../../../hooks/useDialog'
+import { useDialog } from '../../../components/DialogProvider'
 import { useToast } from '../../../hooks/useToast'
 
 interface Section {
@@ -84,6 +84,7 @@ export default function CommitteeSchedules() {
     scheduleId: ''
   })
   const [searchResult, setSearchResult] = useState<any>(null)
+  const [formError, setFormError] = useState<string>('')
 
   // Load data on component mount
   useEffect(() => {
@@ -224,22 +225,121 @@ export default function CommitteeSchedules() {
       if (!response.ok) {
         const errorData = await response.json()
         console.log('❌ Server error response:', errorData)
+        console.log('❌ Error data type:', typeof errorData)
+        console.log('❌ Error data keys:', Object.keys(errorData))
+        console.log('❌ Conflict type:', errorData.conflictType)
+        console.log('❌ Conflict details:', errorData.conflictDetails)
         
-        // Show user-friendly error message
-        if (errorData.error && errorData.error.includes('Faculty already has a meeting')) {
+        // Show user-friendly error message with specific conflict details
+        if (errorData.conflictType === 'faculty_schedule' && errorData.conflictDetails) {
+          const { day, time, existingCourse, instructor } = errorData.conflictDetails
+          
+          // Set form error for inline display
+          setFormError(`⚠️ ${instructor} already has a meeting on ${day} at ${time}. Existing course: ${existingCourse}`)
+          
           showDialog({
-            title: 'Schedule Conflict',
-            message: `This instructor already has a meeting at the selected time. Please choose a different time slot or day.`,
+            title: 'Faculty Schedule Conflict',
+            message: `⚠️ **Instructor Conflict Detected**\n\n${instructor} already has a meeting on **${day}** at **${time}**.\n\n**Existing Course:** ${existingCourse}\n\nPlease choose a different time slot or day to avoid conflicts.`,
+            type: 'warning',
+            confirmText: 'Choose Different Time',
+            onConfirm: () => {
+              // Focus on the time selection area
+              const timeSlotContainer = document.querySelector('[data-testid="time-selection"]')
+              if (timeSlotContainer) {
+                timeSlotContainer.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }
+            }
+          })
+          
+          // Also show toast with specific details
+          warning(`Faculty conflict: ${instructor} has existing meeting on ${day} at ${time}`)
+          return // Don't throw error, just return to stop execution
+        } else if (errorData.conflictType === 'room_schedule' && errorData.conflictDetails) {
+          const { day, time, existingCourse, instructor, room } = errorData.conflictDetails
+          
+          // Set form error for inline display
+          setFormError(`🏢 Room ${room} is already occupied on ${day} at ${time}. Existing course: ${existingCourse}`)
+          
+          showDialog({
+            title: 'Room Schedule Conflict',
+            message: `🏢 **Room Conflict Detected**\n\nRoom **${room}** is already occupied on **${day}** at **${time}**.\n\n**Existing Course:** ${existingCourse}\n**Instructor:** ${instructor}\n\nPlease select a different room or time slot.`,
+            type: 'warning',
+            confirmText: 'Choose Different Room',
+            onConfirm: () => {
+              // Focus on the room selection
+              const roomSelect = document.querySelector('select[name="roomId"]')
+              if (roomSelect) {
+                roomSelect.focus()
+                roomSelect.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }
+            }
+          })
+          warning(`Room conflict: ${room} is occupied on ${day} at ${time}`)
+          return
+        } else if (errorData.error && errorData.error.includes('Faculty already has a meeting')) {
+          // Fallback for old error format
+          const conflictMatch = errorData.error.match(/Faculty already has a meeting on (\w+) at (\d{2}:\d{2})-(\d{2}:\d{2})/)
+          const day = conflictMatch ? conflictMatch[1] : 'the selected day'
+          const startTime = conflictMatch ? conflictMatch[2] : 'the selected time'
+          const endTime = conflictMatch ? conflictMatch[3] : 'the selected time'
+          
+          // Set form error for inline display
+          setFormError(`⚠️ Instructor already has a meeting on ${day} at ${startTime}-${endTime}`)
+          
+          showDialog({
+            title: 'Schedule Conflict Detected',
+            message: `⚠️ This instructor already has a meeting on ${day} at ${startTime}-${endTime}.\n\nPlease choose a different time slot or day to avoid conflicts.`,
+            type: 'warning',
+            confirmText: 'Choose Different Time',
+            onConfirm: () => {
+              // Focus on the time selection area
+              const timeSlotContainer = document.querySelector('[data-testid="time-selection"]')
+              if (timeSlotContainer) {
+                timeSlotContainer.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }
+            }
+          })
+          
+          // Also show toast with specific details
+          warning(`Schedule conflict: Instructor has existing meeting on ${day} at ${startTime}-${endTime}`)
+          return // Don't throw error, just return to stop execution
+        } else if (errorData.error && errorData.error.includes('Room already occupied')) {
+          showDialog({
+            title: 'Room Conflict',
+            message: `🏢 The selected room is already occupied at the chosen time.\n\nPlease select a different room or time slot.`,
+            type: 'warning',
+            confirmText: 'Choose Different Room',
+            onConfirm: () => {
+              // Focus on the room selection
+              const roomSelect = document.querySelector('select[name="roomId"]')
+              if (roomSelect) {
+                roomSelect.focus()
+                roomSelect.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }
+            }
+          })
+          warning('Room conflict: Selected room is already occupied at this time')
+          return
+        } else if (errorData.error && errorData.error.includes('Student time conflict')) {
+          showDialog({
+            title: 'Student Schedule Conflict',
+            message: `👥 There are students with conflicting schedules.\n\nPlease review the student assignments and choose a different time.`,
             type: 'warning'
           })
-          // Also show toast as backup
-          warning('Schedule conflict: This instructor already has a meeting at the selected time.')
-          return // Don't throw error, just return to stop execution
+          warning('Student schedule conflict detected')
+          return
         } else {
+          // Generic error handling - always show something
+          console.log('❌ Falling back to generic error handling')
+          
+          // Set form error for inline display
+          setFormError(`❌ ${errorData.error || 'An error occurred while creating the section.'}`)
+          
           showDialog({
             title: 'Error Creating Section',
             message: errorData.error || 'An error occurred while creating the section.',
-            type: 'error'
+            type: 'error',
+            confirmText: 'Try Again'
           })
           // Also show toast as backup
           error(errorData.error || 'An error occurred while creating the section.')
@@ -291,30 +391,50 @@ export default function CommitteeSchedules() {
   }
 
   const removeSection = async (id: string) => {
-    const confirmed = await confirm({
-      title: 'Delete Section',
-      message: 'Are you sure you want to delete this section?',
-      type: 'warning'
-    })
+    console.log('🗑️ Remove section clicked for ID:', id)
+    console.log('🗑️ useDialog hook:', { showDialog, confirm })
+    console.log('🗑️ About to call confirm dialog...')
     
-    if (!confirmed) return
+    let confirmed = false
+    try {
+      confirmed = await confirm({
+        title: 'Delete Section',
+        message: 'Are you sure you want to delete this section?',
+        type: 'warning'
+      })
+      
+      console.log('🗑️ Confirmation result:', confirmed)
+    } catch (error) {
+      console.error('🗑️ Error in confirm dialog:', error)
+      return
+    }
+    
+    if (!confirmed) {
+      console.log('🗑️ User cancelled deletion')
+      return
+    }
 
     try {
+      console.log('🗑️ Sending DELETE request to:', `/api/sections/${id}`)
       const response = await fetch(`/api/sections/${id}`, {
         method: 'DELETE',
       })
 
+      console.log('🗑️ DELETE response status:', response.status)
       const result = await response.json()
+      console.log('🗑️ DELETE response data:', result)
       
       if (result.success) {
         // Remove the section from local state immediately
+        console.log('🗑️ Removing section from local state')
         setSections(prev => prev.filter(section => section.id !== id))
         success('Section deleted successfully!')
       } else {
+        console.log('🗑️ Delete failed:', result.error)
         error('Error deleting section: ' + result.error)
       }
     } catch (error) {
-      console.error('Error deleting section:', error)
+      console.error('🗑️ Error deleting section:', error)
       error('Error deleting section')
     }
   }
@@ -440,7 +560,10 @@ export default function CommitteeSchedules() {
               <h1 className="text-2xl font-bold text-gray-900">Draft Schedules</h1>
             </div>
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => {
+                setShowAddModal(true)
+                setFormError('') // Clear any previous errors
+              }}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -517,13 +640,20 @@ export default function CommitteeSchedules() {
                             setSelectedSection(section)
                             setShowEnrollModal(true)
                           }}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 hover:text-blue-800 rounded-md transition-colors cursor-pointer mr-2"
                         >
                           Enroll Students
                         </button>
                         <button
-                          onClick={() => removeSection(section.id)}
-                          className="text-red-600 hover:text-red-900"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            console.log('🗑️ Remove button clicked for section:', section.id)
+                            console.log('🗑️ Button event:', e)
+                            removeSection(section.id)
+                          }}
+                          className="px-3 py-1 text-sm bg-red-100 text-red-700 hover:bg-red-200 hover:text-red-800 rounded-md transition-colors cursor-pointer"
+                          type="button"
                         >
                           Remove
                         </button>
@@ -562,13 +692,24 @@ export default function CommitteeSchedules() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Section</h3>
+            
+            {/* Error Display */}
+            {formError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm font-medium">{formError}</p>
+              </div>
+            )}
+            
             <div className="space-y-4">
               <div>
                 <label htmlFor="course-select" className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
                 <select
                   id="course-select"
                   value={newSection.courseId}
-                  onChange={(e) => setNewSection({...newSection, courseId: e.target.value})}
+                  onChange={(e) => {
+                    setNewSection({...newSection, courseId: e.target.value})
+                    setFormError('') // Clear error when user makes changes
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select a course</option>
@@ -643,10 +784,11 @@ export default function CommitteeSchedules() {
               </div>
 
               {/* Time Slots for Selected Days */}
-              {newSection.selectedDays.map(day => (
-                <div key={day}>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{day} Time Slots *</label>
-                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+              <div data-testid="time-selection">
+                {newSection.selectedDays.map(day => (
+                  <div key={day}>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{day} Time Slots *</label>
+                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
                     {timeSlots
                       .filter(ts => ts.dayOfWeek === day)
                       .map(timeSlot => (
@@ -679,9 +821,10 @@ export default function CommitteeSchedules() {
                           <span className="text-sm text-gray-700">{timeSlot.startTime}-{timeSlot.endTime}</span>
                         </label>
                       ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
               <div>
                 <label htmlFor="capacity-input" className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
                 <input
@@ -698,7 +841,10 @@ export default function CommitteeSchedules() {
             </div>
             <div className="flex justify-end space-x-3 mt-6">
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false)
+                  setFormError('') // Clear error when modal is closed
+                }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
                 Cancel

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, createContext, useContext } from 'react'
 
 interface DialogOptions {
   title: string
@@ -21,53 +21,21 @@ interface DialogState {
   type: 'info' | 'warning' | 'error' | 'success'
 }
 
-export function useDialog() {
-  const [dialog, setDialog] = useState<DialogState>({
-    isOpen: false,
-    title: '',
-    message: '',
-    confirmText: 'OK',
-    cancelText: 'Cancel',
-    type: 'info'
-  })
-
-  const showDialog = useCallback((options: DialogOptions) => {
-    setDialog({
-      isOpen: true,
-      title: options.title,
-      message: options.message,
-      confirmText: options.confirmText || 'OK',
-      cancelText: options.cancelText || 'Cancel',
-      onConfirm: options.onConfirm,
-      onCancel: options.onCancel,
-      type: options.type || 'info'
-    })
-  }, [])
-
-  const hideDialog = useCallback(() => {
-    setDialog(prev => ({ ...prev, isOpen: false }))
-  }, [])
-
-  const confirm = useCallback((options: Omit<DialogOptions, 'onConfirm' | 'onCancel'>) => {
-    return new Promise<boolean>((resolve) => {
-      showDialog({
-        ...options,
-        onConfirm: () => {
-          hideDialog()
-          resolve(true)
-        },
-        onCancel: () => {
-          hideDialog()
-          resolve(false)
-        }
-      })
-    })
-  }, [showDialog, hideDialog])
-
-  return {
-    dialog,
-    showDialog,
-    hideDialog,
-    confirm
-  }
+interface DialogContextType {
+  dialog: DialogState
+  showDialog: (options: DialogOptions) => void
+  hideDialog: () => void
+  confirm: (options: Omit<DialogOptions, 'onConfirm' | 'onCancel'>) => Promise<boolean>
 }
+
+const DialogContext = createContext<DialogContextType | undefined>(undefined)
+
+export function useDialog() {
+  const context = useContext(DialogContext)
+  if (context === undefined) {
+    throw new Error('useDialog must be used within a DialogProvider')
+  }
+  return context
+}
+
+// Dialog provider will be created in a separate .tsx file

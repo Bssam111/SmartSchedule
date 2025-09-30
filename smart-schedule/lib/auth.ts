@@ -45,11 +45,13 @@ export class AuthService {
 
   // Login with email, password, and role
   async login(email: string, password: string, role: string): Promise<{ success: boolean; error?: string }> {
+    console.log('🔐 AuthService.login called with:', { email, password, role })
     this.authState.isLoading = true
     this.notifyListeners()
 
     try {
       // Mock authentication - in production, this would call your API
+      console.log('🔐 Simulating API call...')
       await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
 
       // For demo purposes, accept any credentials
@@ -60,19 +62,27 @@ export class AuthService {
         role: role as User['role'],
       }
 
+      console.log('🔐 Created user:', user)
+
       this.authState = {
         user,
         isAuthenticated: true,
         isLoading: false,
       }
 
+      console.log('🔐 Updated auth state:', this.authState)
+
       // Store in localStorage for persistence
       localStorage.setItem('smartSchedule_user', JSON.stringify(user))
       localStorage.setItem('smartSchedule_auth', 'true')
 
+      console.log('🔐 Stored in localStorage')
+
       this.notifyListeners()
+      console.log('🔐 Notified listeners, returning success')
       return { success: true }
     } catch (error) {
+      console.error('🔐 AuthService login error:', error)
       this.authState.isLoading = false
       this.notifyListeners()
       return { 

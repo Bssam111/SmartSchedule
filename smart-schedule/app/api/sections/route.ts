@@ -109,9 +109,9 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Check for duplicate meetings
+      // Check for faculty conflicts
       for (const meeting of meetings) {
-        const existingMeeting = await prisma.sectionMeeting.findFirst({
+        const existingFacultyMeeting = await prisma.sectionMeeting.findFirst({
           where: {
             dayOfWeek: meeting.dayOfWeek,
             startTime: meeting.startTime,
@@ -119,14 +119,67 @@ export async function POST(request: NextRequest) {
             section: {
               instructorId: instructorId
             }
+          },
+          include: {
+            section: {
+              include: {
+                course: true,
+                instructor: true
+              }
+            }
           }
         })
         
-        if (existingMeeting) {
+        if (existingFacultyMeeting) {
           return NextResponse.json(
             { 
               success: false, 
-              error: `Faculty already has a meeting on ${meeting.dayOfWeek} at ${meeting.startTime}-${meeting.endTime}` 
+              error: `Faculty already has a meeting on ${meeting.dayOfWeek} at ${meeting.startTime}-${meeting.endTime}`,
+              conflictType: 'faculty_schedule',
+              conflictDetails: {
+                day: meeting.dayOfWeek,
+                time: `${meeting.startTime}-${meeting.endTime}`,
+                existingCourse: existingFacultyMeeting.section.course.code,
+                instructor: existingFacultyMeeting.section.instructor.name
+              }
+            },
+            { status: 400 }
+          )
+        }
+
+        // Check for room conflicts
+        const existingRoomMeeting = await prisma.sectionMeeting.findFirst({
+          where: {
+            dayOfWeek: meeting.dayOfWeek,
+            startTime: meeting.startTime,
+            endTime: meeting.endTime,
+            section: {
+              roomId: roomId
+            }
+          },
+          include: {
+            section: {
+              include: {
+                course: true,
+                instructor: true
+              }
+            }
+          }
+        })
+        
+        if (existingRoomMeeting) {
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: `Room already occupied on ${meeting.dayOfWeek} at ${meeting.startTime}-${meeting.endTime}`,
+              conflictType: 'room_schedule',
+              conflictDetails: {
+                day: meeting.dayOfWeek,
+                time: `${meeting.startTime}-${meeting.endTime}`,
+                existingCourse: existingRoomMeeting.section.course.code,
+                instructor: existingRoomMeeting.section.instructor.name,
+                room: room.name
+              }
             },
             { status: 400 }
           )

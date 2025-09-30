@@ -16,25 +16,34 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('🔐 Login form submitted')
     setIsLoading(true)
     setError('')
 
     try {
+      console.log('🔐 Calling login with:', { email, password, role })
       const result = await login(email, password, role)
+      console.log('🔐 Login result:', result)
       
       if (result.success) {
+        console.log('🔐 Login successful, redirecting to:', role)
         // Redirect based on role
         if (role === 'student') {
+          console.log('🔐 Redirecting to student dashboard')
           router.push('/student/dashboard')
         } else if (role === 'faculty') {
+          console.log('🔐 Redirecting to faculty dashboard')
           router.push('/faculty/dashboard')
         } else if (role === 'committee') {
+          console.log('🔐 Redirecting to committee dashboard')
           router.push('/committee/dashboard')
         }
       } else {
+        console.log('🔐 Login failed:', result.error)
         setError(result.error || 'Login failed')
       }
     } catch (err) {
+      console.error('🔐 Login error:', err)
       setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)

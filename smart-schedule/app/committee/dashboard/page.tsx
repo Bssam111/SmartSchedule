@@ -1,8 +1,11 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { ProtectedRoute } from '../../../components/ProtectedRoute'
+import { useAuth } from '../../../components/AuthProvider'
 
 export default function CommitteeDashboard() {
+  const { getCurrentUser } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [schedules] = useState([
     { id: '1', name: 'Fall 2024 Draft', status: 'Draft', courses: 15, sections: 25, lastModified: '2 hours ago' },
@@ -14,7 +17,8 @@ export default function CommitteeDashboard() {
   ])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ProtectedRoute requiredRole="committee">
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -128,5 +132,6 @@ export default function CommitteeDashboard() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   )
 }
