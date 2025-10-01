@@ -54,12 +54,39 @@ export class AuthService {
       console.log('🔐 Simulating API call...')
       await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
 
-      // For demo purposes, accept any credentials
-      const user: User = {
-        id: `user-${Date.now()}`,
-        email,
-        name: email.split('@')[0],
-        role: role as User['role'],
+      // Map to actual database users for demo purposes
+      let user: User
+      
+      // Map common demo emails to database user IDs
+      if (email === 'faculty@university.edu' && role === 'faculty') {
+        user = {
+          id: 'cmg6bgyv70005b7pzt29pdr4k', // Dr. Smith's database ID
+          email,
+          name: 'Dr. Smith',
+          role: role as User['role'],
+        }
+      } else if (email === 'student@university.edu' && role === 'student') {
+        user = {
+          id: 'cmg6bgyv30004b7pz3a6ppa7u', // John Student's database ID
+          email,
+          name: 'John Student',
+          role: role as User['role'],
+        }
+      } else if (email === 'committee@university.edu' && role === 'committee') {
+        user = {
+          id: 'cmg6bgyv80006b7pz95bo7v7x', // Committee's database ID
+          email,
+          name: 'Scheduling Committee',
+          role: role as User['role'],
+        }
+      } else {
+        // For any other credentials, generate a demo user
+        user = {
+          id: `user-${Date.now()}`,
+          email,
+          name: email.split('@')[0],
+          role: role as User['role'],
+        }
       }
 
       console.log('🔐 Created user:', user)

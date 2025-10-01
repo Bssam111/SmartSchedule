@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { ProtectedRoute } from '../../../components/ProtectedRoute'
+import { useAuth } from '../../../components/AuthProvider'
 
 interface Assignment {
   id: string
@@ -23,34 +25,63 @@ interface Assignment {
 }
 
 export default function FacultyAssignments() {
+  const { getCurrentUser, authState } = useAuth()
+  const user = getCurrentUser()
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
-  const [facultyId] = useState('cmg5jf2hc00059gj9jarr69er') // Dr. Smith's actual ID from database
+  
+  // Get faculty ID from authenticated user (now maps to database ID)
+  const facultyId = user?.id
 
   useEffect(() => {
-    loadAssignments()
-  }, [])
+    console.log('🔄 Faculty Assignments useEffect triggered')
+    console.log('🔄 Auth state:', { isLoading: authState.isLoading, isAuthenticated: authState.isAuthenticated })
+    console.log('🔄 User:', user)
+    console.log('🔄 Faculty ID:', facultyId)
+    
+    // Only load assignments if auth is not loading and we have a faculty ID
+    if (!authState.isLoading && facultyId) {
+      console.log('🔄 Loading assignments for faculty ID:', facultyId)
+      loadAssignments()
+    } else if (!authState.isLoading && !facultyId) {
+      console.log('⚠️ No faculty ID available, setting loading to false')
+      setLoading(false)
+    }
+  }, [facultyId, authState.isLoading, user])
 
   const loadAssignments = async () => {
+    if (!facultyId) return
+    
     try {
       setLoading(true)
+      console.log('🔄 Loading faculty assignments for:', facultyId)
       const response = await fetch(`/api/faculty/assignments?facultyId=${facultyId}`)
       const result = await response.json()
       
+      console.log('📋 Faculty assignments response:', result)
+      
       if (result.success) {
         setAssignments(result.data)
+        console.log('✅ Loaded assignments:', result.data.length)
       } else {
-        console.error('Error loading assignments:', result.error)
+        console.error('❌ Error loading assignments:', result.error)
       }
     } catch (error) {
-      console.error('Error loading assignments:', error)
+      console.error('❌ Error loading assignments:', error)
     } finally {
       setLoading(false)
     }
   }
 
+  // Add refresh function that can be called externally
+  const refreshAssignments = () => {
+    console.log('🔄 Refreshing faculty assignments...')
+    loadAssignments()
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ProtectedRoute requiredRole="faculty">
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -61,16 +92,27 @@ export default function FacultyAssignments() {
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">My Assignments</h1>
             </div>
+            <button
+              onClick={refreshAssignments}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Refresh</span>
+            </button>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {loading ? (
+        {authState.isLoading || loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading assignments...</p>
+              <p className="text-gray-600">
+                {authState.isLoading ? 'Loading authentication...' : 'Loading assignments...'}
+              </p>
             </div>
           </div>
         ) : assignments.length === 0 ? (
@@ -139,5 +181,6 @@ export default function FacultyAssignments() {
         )}
       </div>
     </div>
+    </ProtectedRoute>
   )
 }

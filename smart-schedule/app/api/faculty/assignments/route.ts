@@ -7,7 +7,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const facultyId = searchParams.get('facultyId')
 
+    console.log('🔍 Faculty assignments API called with facultyId:', facultyId)
+
     if (!facultyId) {
+      console.log('❌ No faculty ID provided')
       return NextResponse.json(
         { success: false, error: 'Faculty ID is required' },
         { status: 400 }
@@ -15,6 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get sections assigned to this faculty member
+    console.log('🔍 Querying sections for instructorId:', facultyId)
     const sections = await prisma.section.findMany({
       where: {
         instructorId: facultyId
@@ -30,6 +34,9 @@ export async function GET(request: NextRequest) {
         }
       }
     })
+
+    console.log('🔍 Found sections:', sections.length)
+    console.log('🔍 Sections data:', sections.map(s => ({ id: s.id, course: s.course.code, instructor: s.instructorId })))
 
     // Transform the data for the frontend
     const assignments = sections.map(section => ({
@@ -53,6 +60,9 @@ export async function GET(request: NextRequest) {
         }
       }))
     }))
+
+    console.log('🔍 Returning assignments:', assignments.length)
+    console.log('🔍 Assignments data:', assignments)
 
     return NextResponse.json({
       success: true,

@@ -25,29 +25,45 @@ interface Assignment {
 }
 
 export default function FacultyDashboard() {
-  const { getCurrentUser } = useAuth()
+  const { getCurrentUser, authState } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
-  const [facultyId] = useState('cmg5jf2hc00059gj9jarr69er') // Dr. Smith's actual ID from database
+  // Get faculty ID from authenticated user (now maps to database ID)
+  const facultyId = getCurrentUser()?.id
 
   useEffect(() => {
-    loadAssignments()
-  }, [])
+    console.log('🔄 Faculty Dashboard useEffect triggered')
+    console.log('🔄 Auth state:', { isLoading: authState.isLoading, isAuthenticated: authState.isAuthenticated })
+    console.log('🔄 Faculty ID:', facultyId)
+    
+    // Only load assignments if auth is not loading and we have a faculty ID
+    if (!authState.isLoading && facultyId) {
+      console.log('🔄 Loading dashboard assignments for faculty ID:', facultyId)
+      loadAssignments()
+    } else if (!authState.isLoading && !facultyId) {
+      console.log('⚠️ No faculty ID available, setting loading to false')
+      setLoading(false)
+    }
+  }, [facultyId, authState.isLoading])
 
   const loadAssignments = async () => {
+    if (!facultyId) return
+    
     try {
       setLoading(true)
+      console.log('🔄 Loading faculty assignments for dashboard:', facultyId)
       const response = await fetch(`/api/faculty/assignments?facultyId=${facultyId}`)
       const result = await response.json()
       
       if (result.success) {
         setAssignments(result.data)
+        console.log('✅ Loaded dashboard assignments:', result.data.length)
       } else {
-        console.error('Error loading assignments:', result.error)
+        console.error('❌ Error loading assignments:', result.error)
       }
     } catch (error) {
-      console.error('Error loading assignments:', error)
+      console.error('❌ Error loading assignments:', error)
     } finally {
       setLoading(false)
     }

@@ -109,6 +109,45 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Check faculty availability
+      const facultyPreferences = await prisma.preference.findFirst({
+        where: {
+          userId: instructorId,
+          type: 'availability'
+        }
+      })
+
+      if (facultyPreferences) {
+        const facultyAvailability = JSON.parse(facultyPreferences.value as string)
+        
+        for (const meeting of meetings) {
+          const day = meeting.dayOfWeek.toLowerCase()
+          const timeSlot = `${meeting.startTime}-${meeting.endTime}`
+          
+          // Check if faculty has availability set for this day
+          if (facultyAvailability[day]) {
+            // Check if the time slot is available (not in unavailable list)
+            const unavailableSlots = facultyAvailability[day].unavailable || []
+            if (unavailableSlots.includes(timeSlot)) {
+              return NextResponse.json(
+                { 
+                  success: false, 
+                  error: `Faculty is not available on ${meeting.dayOfWeek} at ${meeting.startTime}-${meeting.endTime}`,
+                  conflictType: 'faculty_availability',
+                  conflictDetails: {
+                    day: meeting.dayOfWeek,
+                    time: `${meeting.startTime}-${meeting.endTime}`,
+                    instructor: instructor.name,
+                    reason: 'Faculty marked this time slot as unavailable'
+                  }
+                },
+                { status: 400 }
+              )
+            }
+          }
+        }
+      }
+
       // Check for faculty conflicts
       for (const meeting of meetings) {
         const existingFacultyMeeting = await prisma.sectionMeeting.findFirst({

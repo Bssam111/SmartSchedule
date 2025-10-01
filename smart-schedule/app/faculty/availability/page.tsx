@@ -1,19 +1,26 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useDialog } from '../../../hooks/useDialog'
 import { useToast } from '../../../hooks/useToast'
+import { ProtectedRoute } from '../../../components/ProtectedRoute'
+import { useAuth } from '../../../components/AuthProvider'
 
 export default function FacultyAvailability() {
   const { success, error } = useToast()
+  const { getCurrentUser, authState } = useAuth()
   const [availability, setAvailability] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [facultyId] = useState('cmg5jf2hc00059gj9jarr69er') // Dr. Smith's actual ID from database
+  // Get faculty ID from authenticated user (now maps to database ID)
+  const facultyId = getCurrentUser()?.id
 
   useEffect(() => {
-    loadAvailability()
-  }, [])
+    if (!authState.isLoading && facultyId) {
+      loadAvailability()
+    } else if (!authState.isLoading && !facultyId) {
+      setLoading(false)
+    }
+  }, [facultyId, authState.isLoading])
 
   const loadAvailability = async () => {
     try {
@@ -83,7 +90,8 @@ export default function FacultyAvailability() {
   const getAvailabilityKey = (day: string, time: string) => `${day}-${time}`
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ProtectedRoute requiredRole="faculty">
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -183,7 +191,7 @@ export default function FacultyAvailability() {
           )}
         </div>
       </div>
-
-    </div>
+      </div>
+    </ProtectedRoute>
   )
 }

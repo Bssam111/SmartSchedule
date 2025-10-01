@@ -254,6 +254,27 @@ export default function CommitteeSchedules() {
           // Also show toast with specific details
           warning(`Faculty conflict: ${instructor} has existing meeting on ${day} at ${time}`)
           return // Don't throw error, just return to stop execution
+        } else if (errorData.conflictType === 'faculty_availability' && errorData.conflictDetails) {
+          const { day, time, instructor, reason } = errorData.conflictDetails
+          
+          // Set form error for inline display
+          setFormError(`🚫 ${instructor} is not available on ${day} at ${time}. ${reason}`)
+          
+          showDialog({
+            title: 'Faculty Availability Conflict',
+            message: `🚫 **Faculty Availability Conflict**\n\n**${instructor}** is not available on **${day}** at **${time}**.\n\n**Reason:** ${reason}\n\nPlease choose a different time slot that aligns with the faculty member's availability.`,
+            type: 'warning',
+            confirmText: 'Choose Different Time',
+            onConfirm: () => {
+              // Focus on the time selection area
+              const timeSlotContainer = document.querySelector('[data-testid="time-selection"]')
+              if (timeSlotContainer) {
+                timeSlotContainer.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }
+            }
+          })
+          warning(`Faculty availability conflict: ${instructor} not available on ${day} at ${time}`)
+          return
         } else if (errorData.conflictType === 'room_schedule' && errorData.conflictDetails) {
           const { day, time, existingCourse, instructor, room } = errorData.conflictDetails
           
@@ -269,7 +290,7 @@ export default function CommitteeSchedules() {
               // Focus on the room selection
               const roomSelect = document.querySelector('select[name="roomId"]')
               if (roomSelect) {
-                roomSelect.focus()
+                (roomSelect as HTMLSelectElement).focus()
                 roomSelect.scrollIntoView({ behavior: 'smooth', block: 'center' })
               }
             }
@@ -313,7 +334,7 @@ export default function CommitteeSchedules() {
               // Focus on the room selection
               const roomSelect = document.querySelector('select[name="roomId"]')
               if (roomSelect) {
-                roomSelect.focus()
+                (roomSelect as HTMLSelectElement).focus()
                 roomSelect.scrollIntoView({ behavior: 'smooth', block: 'center' })
               }
             }
