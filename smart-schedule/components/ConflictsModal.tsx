@@ -1,5 +1,5 @@
 'use client'
-import { useDialog } from '../hooks/useDialog'
+import { useDialog } from './DialogProvider'
 
 interface Conflict {
   type: string

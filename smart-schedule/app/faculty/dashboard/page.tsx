@@ -33,19 +33,15 @@ export default function FacultyDashboard() {
   const facultyId = getCurrentUser()?.id
 
   useEffect(() => {
-    console.log('🔄 Faculty Dashboard useEffect triggered')
-    console.log('🔄 Auth state:', { isLoading: authState.isLoading, isAuthenticated: authState.isAuthenticated })
-    console.log('🔄 Faculty ID:', facultyId)
-    
-    // Only load assignments if auth is not loading and we have a faculty ID
-    if (!authState.isLoading && facultyId) {
-      console.log('🔄 Loading dashboard assignments for faculty ID:', facultyId)
+    // Only load assignments if auth is not loading, user is authenticated, and we have a faculty ID
+    if (!authState.isLoading && authState.isAuthenticated && facultyId) {
       loadAssignments()
+    } else if (!authState.isLoading && !authState.isAuthenticated) {
+      setLoading(false)
     } else if (!authState.isLoading && !facultyId) {
-      console.log('⚠️ No faculty ID available, setting loading to false')
       setLoading(false)
     }
-  }, [facultyId, authState.isLoading])
+  }, [facultyId, authState.isLoading, authState.isAuthenticated])
 
   const loadAssignments = async () => {
     if (!facultyId) return

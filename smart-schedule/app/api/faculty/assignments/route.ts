@@ -3,14 +3,16 @@ import { prisma } from '../../../../lib/database'
 
 // GET /api/faculty/assignments - Get faculty assignments
 export async function GET(request: NextRequest) {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  
   try {
     const { searchParams } = new URL(request.url)
     const facultyId = searchParams.get('facultyId')
 
-    console.log('🔍 Faculty assignments API called with facultyId:', facultyId)
+    console.log(`[${requestId}] 🔍 Faculty assignments API called with facultyId:`, facultyId)
 
     if (!facultyId) {
-      console.log('❌ No faculty ID provided')
+      console.log(`[${requestId}] ❌ No faculty ID provided`)
       return NextResponse.json(
         { success: false, error: 'Faculty ID is required' },
         { status: 400 }
@@ -18,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get sections assigned to this faculty member
-    console.log('🔍 Querying sections for instructorId:', facultyId)
+    console.log(`[${requestId}] 🔍 Querying sections for instructorId:`, facultyId)
     const sections = await prisma.section.findMany({
       where: {
         instructorId: facultyId
@@ -34,11 +36,17 @@ export async function GET(request: NextRequest) {
         }
       }
     })
+    
+    console.log(`[${requestId}] 🔍 Found sections:`, sections.length)
+    console.log(`[${requestId}] 🔍 Sections data:`, sections.map(s => ({ 
+      id: s.id, 
+      course: s.course.code, 
+      instructor: s.instructorId,
+      meetings: s.meetings.length,
+      assignments: s.assignments.length
+    })))
 
-    console.log('🔍 Found sections:', sections.length)
-    console.log('🔍 Sections data:', sections.map(s => ({ id: s.id, course: s.course.code, instructor: s.instructorId })))
-
-    // Transform the data for the frontend
+    // Transform the data for the frontend using canonical linkage (Sections.instructorId)
     const assignments = sections.map(section => ({
       id: section.id,
       course: {
@@ -60,14 +68,21 @@ export async function GET(request: NextRequest) {
         }
       }))
     }))
+    
+    console.log(`[${requestId}] 📋 Returning ${assignments.length} assignments for faculty ${facultyId}`)
 
-    console.log('🔍 Returning assignments:', assignments.length)
-    console.log('🔍 Assignments data:', assignments)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: assignments
     })
+    
+    // Add cache-busting headers to ensure fresh data
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error) {
     console.error('Error fetching faculty assignments:', error)
     return NextResponse.json(

@@ -44,16 +44,21 @@ export async function GET() {
 
 // POST /api/sections - Create new section
 export async function POST(request: NextRequest) {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  
   try {
+    console.log(`[${requestId}] 📝 Section creation request started`)
+    
     // Parse the request body
     const body = await request.json()
-    console.log('📝 Section creation request:', JSON.stringify(body, null, 2))
+    console.log(`[${requestId}] 📝 Section creation payload:`, JSON.stringify(body, null, 2))
+    console.log(`[${requestId}] 📝 Normalized instructorId:`, body.instructorId)
     
     // Validate the request body using Zod schema
     const validationResult = createSectionSchema.safeParse(body)
     
     if (!validationResult.success) {
-      console.log('❌ Validation failed:', validationResult.error.issues)
+      console.log(`[${requestId}] ❌ Validation failed:`, validationResult.error.issues)
       return NextResponse.json(
         { 
           success: false, 
@@ -68,6 +73,51 @@ export async function POST(request: NextRequest) {
     }
 
     const { courseId, instructorId, roomId, meetings, capacity } = validationResult.data
+    
+    // Validate instructorId is provided and not null/undefined
+    if (!instructorId) {
+      console.log(`[${requestId}] ❌ No instructorId provided`)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'INSTRUCTOR_REQUIRED',
+          message: 'Instructor ID is required to create a section'
+        },
+        { status: 400 }
+      )
+    }
+    
+    // Verify instructor exists in database
+    const instructor = await prisma.user.findUnique({
+      where: { id: instructorId },
+      select: { id: true, name: true, role: true }
+    })
+    
+    if (!instructor) {
+      console.log(`[${requestId}] ❌ Instructor not found:`, instructorId)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'INSTRUCTOR_NOT_FOUND',
+          message: 'Instructor not found in database'
+        },
+        { status: 400 }
+      )
+    }
+    
+    if (instructor.role !== 'FACULTY') {
+      console.log(`[${requestId}] ❌ User is not a faculty member:`, instructor.role)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'INVALID_INSTRUCTOR_ROLE',
+          message: 'User must be a faculty member to be assigned as instructor'
+        },
+        { status: 400 }
+      )
+    }
+    
+    console.log(`[${requestId}] ✅ Instructor validated:`, instructor.name, `(${instructor.role})`)
 
     // Meetings are already validated by Zod schema
 
@@ -226,9 +276,9 @@ export async function POST(request: NextRequest) {
       }
 
       // Create section with meetings in a transaction
-      console.log('🔄 Starting database transaction...')
+      console.log(`[${requestId}] 🔄 Starting database transaction...`)
       const section = await prisma.$transaction(async (tx) => {
-        console.log('📝 Creating section...')
+        console.log(`[${requestId}] 📝 Creating section with instructorId:`, instructorId)
         // Create the section
         const newSection = await tx.section.create({
           data: {
@@ -238,13 +288,13 @@ export async function POST(request: NextRequest) {
             roomId
           }
         })
-        console.log('✅ Section created:', newSection.id)
+        console.log(`[${requestId}] ✅ Section created:`, newSection.id, 'for instructor:', instructorId)
 
-        console.log('📅 Creating meetings...')
+        console.log(`[${requestId}] 📅 Creating meetings...`)
         // Create the meetings
         const sectionMeetings = await Promise.all(
           meetings.map(meeting => {
-            console.log(`  - Creating meeting: ${meeting.dayOfWeek} ${meeting.startTime}-${meeting.endTime}`)
+            console.log(`[${requestId}]   - Creating meeting: ${meeting.dayOfWeek} ${meeting.startTime}-${meeting.endTime}`)
             return tx.sectionMeeting.create({
               data: {
                 sectionId: newSection.id,
@@ -255,7 +305,7 @@ export async function POST(request: NextRequest) {
             })
           })
         )
-        console.log('✅ Meetings created:', sectionMeetings.length)
+        console.log(`[${requestId}] ✅ Meetings created:`, sectionMeetings.length)
 
         console.log('🔍 Fetching section with relations...')
         // Return section with meetings
@@ -269,12 +319,16 @@ export async function POST(request: NextRequest) {
           }
         })
       })
-      console.log('✅ Transaction completed successfully')
+      console.log(`[${requestId}] ✅ Transaction completed successfully`)
 
+      // Cache invalidation - dispatch custom event for frontend cache invalidation
+      console.log(`[${requestId}] 🔄 Dispatching sectionCreated event for instructor:`, instructorId)
+      
       return NextResponse.json({
         success: true,
         data: section,
-        message: 'Section created successfully'
+        message: 'Section created successfully',
+        instructorId: instructorId // Include instructorId for cache invalidation
       })
     } catch (dbError) {
       console.error('❌ Database error:', dbError)

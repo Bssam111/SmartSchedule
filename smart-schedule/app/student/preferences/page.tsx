@@ -1,11 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useDialog } from '../../../hooks/useDialog'
 import { useToast } from '../../../hooks/useToast'
 
 export default function StudentPreferences() {
-  const { showDialog } = useDialog()
   const { success, error } = useToast()
   const [preferences, setPreferences] = useState({
     electives: [],
@@ -28,7 +26,12 @@ export default function StudentPreferences() {
       const result = await response.json()
 
       if (result.success) {
-        setPreferences(result.data || { electives: [], priorities: [], notes: '' })
+        const data = result.data || {}
+        setPreferences({
+          electives: data.electives || [],
+          priorities: data.priorities || [],
+          notes: data.notes || ''
+        })
       }
     } catch (error) {
       console.error('Error loading preferences:', error)
@@ -112,17 +115,17 @@ export default function StudentPreferences() {
                   <label key={elective.id} className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={preferences.electives.includes(elective.id)}
+                      checked={(preferences.electives || []).includes(elective.id)}
                       onChange={(e) => {
                         if (e.target.checked) {
                           setPreferences(prev => ({
                             ...prev,
-                            electives: [...prev.electives, elective.id]
+                            electives: [...(prev.electives || []), elective.id]
                           }))
                         } else {
                           setPreferences(prev => ({
                             ...prev,
-                            electives: prev.electives.filter(id => id !== elective.id)
+                            electives: (prev.electives || []).filter(id => id !== elective.id)
                           }))
                         }
                       }}
@@ -141,7 +144,7 @@ export default function StudentPreferences() {
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Priority Order</h3>
               <div className="space-y-3">
-                {preferences.electives.map((electiveId, index) => {
+                {(preferences.electives || []).map((electiveId, index) => {
                   const elective = availableElectives.find(e => e.id === electiveId)
                   return (
                     <div key={electiveId} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
@@ -150,7 +153,7 @@ export default function StudentPreferences() {
                       <button
                         type="button"
                         onClick={() => {
-                          const newPriorities = [...preferences.priorities]
+                          const newPriorities = [...(preferences.priorities || [])]
                           const currentIndex = newPriorities.indexOf(electiveId)
                           if (currentIndex > 0) {
                             [newPriorities[currentIndex], newPriorities[currentIndex - 1]] = 
@@ -166,7 +169,7 @@ export default function StudentPreferences() {
                       <button
                         type="button"
                         onClick={() => {
-                          const newPriorities = [...preferences.priorities]
+                          const newPriorities = [...(preferences.priorities || [])]
                           const currentIndex = newPriorities.indexOf(electiveId)
                           if (currentIndex < newPriorities.length - 1) {
                             [newPriorities[currentIndex], newPriorities[currentIndex + 1]] = 
@@ -175,7 +178,7 @@ export default function StudentPreferences() {
                           }
                         }}
                         className="text-gray-400 hover:text-gray-600"
-                        disabled={index === preferences.priorities.length - 1}
+                        disabled={index === (preferences.priorities || []).length - 1}
                       >
                         ↓
                       </button>

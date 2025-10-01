@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useDialog } from '../../../../hooks/useDialog'
+import { useDialog } from '../../../../components/DialogProvider'
 import { useToast } from '../../../../hooks/useToast'
 
 interface Student {

@@ -234,31 +234,28 @@ export default function CommitteeSchedules() {
         if (errorData.conflictType === 'faculty_schedule' && errorData.conflictDetails) {
           const { day, time, existingCourse, instructor } = errorData.conflictDetails
           
-          // Set form error for inline display
-          setFormError(`⚠️ ${instructor} already has a meeting on ${day} at ${time}. Existing course: ${existingCourse}`)
-          
           showDialog({
             title: 'Faculty Schedule Conflict',
             message: `⚠️ **Instructor Conflict Detected**\n\n${instructor} already has a meeting on **${day}** at **${time}**.\n\n**Existing Course:** ${existingCourse}\n\nPlease choose a different time slot or day to avoid conflicts.`,
             type: 'warning',
             confirmText: 'Choose Different Time',
             onConfirm: () => {
-              // Focus on the time selection area
+              // Close the modal and focus on the time selection area
               const timeSlotContainer = document.querySelector('[data-testid="time-selection"]')
               if (timeSlotContainer) {
                 timeSlotContainer.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                // Focus on the first time slot input for better UX
+                const firstTimeSlot = timeSlotContainer.querySelector('input[type="checkbox"]')
+                if (firstTimeSlot) {
+                  (firstTimeSlot as HTMLElement).focus()
+                }
               }
             }
           })
           
-          // Also show toast with specific details
-          warning(`Faculty conflict: ${instructor} has existing meeting on ${day} at ${time}`)
           return // Don't throw error, just return to stop execution
         } else if (errorData.conflictType === 'faculty_availability' && errorData.conflictDetails) {
           const { day, time, instructor, reason } = errorData.conflictDetails
-          
-          // Set form error for inline display
-          setFormError(`🚫 ${instructor} is not available on ${day} at ${time}. ${reason}`)
           
           showDialog({
             title: 'Faculty Availability Conflict',
@@ -266,20 +263,21 @@ export default function CommitteeSchedules() {
             type: 'warning',
             confirmText: 'Choose Different Time',
             onConfirm: () => {
-              // Focus on the time selection area
+              // Close the modal and focus on the time selection area
               const timeSlotContainer = document.querySelector('[data-testid="time-selection"]')
               if (timeSlotContainer) {
                 timeSlotContainer.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                // Focus on the first time slot input for better UX
+                const firstTimeSlot = timeSlotContainer.querySelector('input[type="checkbox"]')
+                if (firstTimeSlot) {
+                  (firstTimeSlot as HTMLElement).focus()
+                }
               }
             }
           })
-          warning(`Faculty availability conflict: ${instructor} not available on ${day} at ${time}`)
           return
         } else if (errorData.conflictType === 'room_schedule' && errorData.conflictDetails) {
           const { day, time, existingCourse, instructor, room } = errorData.conflictDetails
-          
-          // Set form error for inline display
-          setFormError(`🏢 Room ${room} is already occupied on ${day} at ${time}. Existing course: ${existingCourse}`)
           
           showDialog({
             title: 'Room Schedule Conflict',
@@ -287,7 +285,7 @@ export default function CommitteeSchedules() {
             type: 'warning',
             confirmText: 'Choose Different Room',
             onConfirm: () => {
-              // Focus on the room selection
+              // Close the modal and focus on the room selection
               const roomSelect = document.querySelector('select[name="roomId"]')
               if (roomSelect) {
                 (roomSelect as HTMLSelectElement).focus()
@@ -295,7 +293,6 @@ export default function CommitteeSchedules() {
               }
             }
           })
-          warning(`Room conflict: ${room} is occupied on ${day} at ${time}`)
           return
         } else if (errorData.error && errorData.error.includes('Faculty already has a meeting')) {
           // Fallback for old error format
@@ -401,6 +398,18 @@ export default function CommitteeSchedules() {
           selectedTimeSlots: {}
         })
         setShowAddModal(false)
+        
+        // Dispatch custom event to notify other parts of the application
+        const sectionCreatedEvent = new CustomEvent('sectionCreated', {
+          detail: {
+            sectionId: result.data.id,
+            instructorId: newSection.instructorId,
+            courseId: newSection.courseId
+          }
+        })
+        window.dispatchEvent(sectionCreatedEvent)
+        
+        // Show success toast
         success('Section created successfully!')
       } else {
         error('Error creating section: ' + result.error)

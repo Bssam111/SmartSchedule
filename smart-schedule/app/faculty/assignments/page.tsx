@@ -32,42 +32,100 @@ export default function FacultyAssignments() {
   
   // Get faculty ID from authenticated user (now maps to database ID)
   const facultyId = user?.id
+  
+  // Debug logging with request ID
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  console.log(`[${requestId}] 🔍 Faculty Assignments - User object:`, user)
+  console.log(`[${requestId}] 🔍 Faculty Assignments - Faculty ID:`, facultyId)
+  console.log(`[${requestId}] 🔍 Faculty Assignments - Auth state:`, authState)
+  
 
   useEffect(() => {
-    console.log('🔄 Faculty Assignments useEffect triggered')
-    console.log('🔄 Auth state:', { isLoading: authState.isLoading, isAuthenticated: authState.isAuthenticated })
-    console.log('🔄 User:', user)
-    console.log('🔄 Faculty ID:', facultyId)
-    
-    // Only load assignments if auth is not loading and we have a faculty ID
-    if (!authState.isLoading && facultyId) {
-      console.log('🔄 Loading assignments for faculty ID:', facultyId)
+    // Only load assignments if auth is not loading, user is authenticated, and we have a faculty ID
+    if (!authState.isLoading && authState.isAuthenticated && facultyId) {
       loadAssignments()
+    } else if (!authState.isLoading && !authState.isAuthenticated) {
+      setLoading(false)
     } else if (!authState.isLoading && !facultyId) {
-      console.log('⚠️ No faculty ID available, setting loading to false')
       setLoading(false)
     }
-  }, [facultyId, authState.isLoading, user])
+  }, [facultyId, authState.isLoading, authState.isAuthenticated])
+
+  // Listen for section creation events to refresh assignments
+  useEffect(() => {
+    const handleSectionCreated = (event: CustomEvent) => {
+      const { instructorId } = event.detail
+      
+      // Only refresh if the section was created for this faculty member
+      if (instructorId === facultyId) {
+        loadAssignments()
+      }
+    }
+
+    // Also refresh when the page becomes visible (in case user navigates here after section creation)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && facultyId) {
+        loadAssignments()
+      }
+    }
+
+    window.addEventListener('sectionCreated', handleSectionCreated as EventListener)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      window.removeEventListener('sectionCreated', handleSectionCreated as EventListener)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [facultyId])
 
   const loadAssignments = async () => {
-    if (!facultyId) return
+    const loadRequestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    if (!facultyId) {
+      console.log(`[${loadRequestId}] ❌ No faculty ID available for loading assignments`)
+      setLoading(false)
+      return
+    }
     
     try {
       setLoading(true)
-      console.log('🔄 Loading faculty assignments for:', facultyId)
-      const response = await fetch(`/api/faculty/assignments?facultyId=${facultyId}`)
-      const result = await response.json()
+      console.log(`[${loadRequestId}] 🔄 Loading assignments for faculty ID:`, facultyId)
       
-      console.log('📋 Faculty assignments response:', result)
+      const timestamp = Date.now()
+      const apiUrl = `/api/faculty/assignments?facultyId=${facultyId}&t=${timestamp}`
+      console.log(`[${loadRequestId}] 🔄 API URL:`, apiUrl)
+      
+      // Add timeout to prevent infinite loading
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+      
+      const response = await fetch(apiUrl, { signal: controller.signal })
+      clearTimeout(timeoutId)
+      
+      console.log(`[${loadRequestId}] 🔄 Response status:`, response.status)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      const result = await response.json()
+      console.log(`[${loadRequestId}] 📋 Faculty assignments response:`, result)
       
       if (result.success) {
         setAssignments(result.data)
-        console.log('✅ Loaded assignments:', result.data.length)
+        console.log(`[${loadRequestId}] ✅ Loaded assignments:`, result.data.length, 'assignments')
       } else {
-        console.error('❌ Error loading assignments:', result.error)
+        console.error(`[${loadRequestId}] ❌ Error loading assignments:`, result.error)
+        setAssignments([]) // Clear assignments on error
       }
     } catch (error) {
-      console.error('❌ Error loading assignments:', error)
+      console.error(`[${loadRequestId}] ❌ Error loading assignments:`, error)
+      setAssignments([]) // Clear assignments on error
+      
+      // Show error message to user
+      if (error.name === 'AbortError') {
+        console.error(`[${loadRequestId}] ⏰ Request timed out after 15 seconds`)
+      }
     } finally {
       setLoading(false)
     }
@@ -75,7 +133,6 @@ export default function FacultyAssignments() {
 
   // Add refresh function that can be called externally
   const refreshAssignments = () => {
-    console.log('🔄 Refreshing faculty assignments...')
     loadAssignments()
   }
 

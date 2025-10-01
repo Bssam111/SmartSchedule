@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, createContext, useContext, ReactNode, useMemo } from 'react'
 
 interface DialogOptions {
   title: string
@@ -29,17 +29,21 @@ interface DialogContextType {
   confirm: (options: Omit<DialogOptions, 'onConfirm' | 'onCancel'>) => Promise<boolean>
 }
 
-const DialogContext = React.createContext<DialogContextType | undefined>(undefined)
+const DialogContext = createContext<DialogContextType | undefined>(undefined)
 
 export function useDialog() {
-  const context = React.useContext(DialogContext)
+  const context = useContext(DialogContext)
   if (context === undefined) {
     throw new Error('useDialog must be used within a DialogProvider')
   }
   return context
 }
 
-export function DialogProvider({ children }: { children: React.ReactNode }) {
+interface DialogProviderProps {
+  readonly children: ReactNode
+}
+
+export function DialogProvider({ children }: DialogProviderProps) {
   const [dialog, setDialog] = useState<DialogState>({
     isOpen: false,
     title: '',
@@ -50,7 +54,6 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   })
 
   const showDialog = useCallback((options: DialogOptions) => {
-    console.log('🔔 showDialog called with:', options)
     setDialog({
       isOpen: true,
       title: options.title,
@@ -61,34 +64,23 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       onCancel: options.onCancel,
       type: options.type || 'info'
     })
-    console.log('🔔 Dialog state updated')
   }, [])
 
   const hideDialog = useCallback(() => {
     setDialog(prev => ({ ...prev, isOpen: false }))
   }, [])
 
-  const confirm = useCallback((options: Omit<DialogOptions, 'onConfirm' | 'onCancel'>) => {
-    console.log('🔔 useDialog.confirm called with:', options)
-    return new Promise<boolean>((resolve) => {
-      console.log('🔔 Creating dialog with options:', options)
+  const confirm = useCallback((options: Omit<DialogOptions, 'onConfirm' | 'onCancel'>): Promise<boolean> => {
+    return new Promise((resolve) => {
       showDialog({
         ...options,
-        onConfirm: () => {
-          console.log('🔔 Dialog confirmed')
-          hideDialog()
-          resolve(true)
-        },
-        onCancel: () => {
-          console.log('🔔 Dialog cancelled')
-          hideDialog()
-          resolve(false)
-        }
+        onConfirm: () => resolve(true),
+        onCancel: () => resolve(false)
       })
     })
-  }, [showDialog, hideDialog])
+  }, [showDialog])
 
-  const contextValue = useMemo(() => ({
+  const value: DialogContextType = useMemo(() => ({
     dialog,
     showDialog,
     hideDialog,
@@ -96,7 +88,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   }), [dialog, showDialog, hideDialog, confirm])
 
   return (
-    <DialogContext.Provider value={contextValue}>
+    <DialogContext.Provider value={value}>
       {children}
     </DialogContext.Provider>
   )
