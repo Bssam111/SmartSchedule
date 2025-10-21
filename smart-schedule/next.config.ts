@@ -13,10 +13,6 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
-  },
-  // Disable server-side features for static export
-  experimental: {
-    esmExternals: false,
   }
 };
 
