@@ -1,20 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "../components/AuthProvider";
 import { NotificationProvider } from "../components/NotificationProvider";
 import { DialogProvider } from "../components/DialogProvider";
 import { Dialog } from "../components/Dialog";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "SmartSchedule",
@@ -29,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning={true}>
       <body 
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-gray-50 text-gray-900`}
+        className="min-h-screen bg-gray-50 text-gray-900 font-sans"
         suppressHydrationWarning={true}
       >
         <AuthProvider>
