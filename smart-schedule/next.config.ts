@@ -1,13 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  serverExternalPackages: ['@prisma/client'],
-  env: {
-    DATABASE_URL: process.env.DATABASE_URL,
-  },
-  // Suppress hydration warnings for browser extensions
-  reactStrictMode: true,
   // Enable static export for Vercel
   output: 'export',
   trailingSlash: true,
@@ -20,6 +13,10 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
+  },
+  // Disable server-side features for static export
+  experimental: {
+    esmExternals: false,
   }
 };
 
