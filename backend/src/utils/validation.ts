@@ -1,26 +1,65 @@
 import { z } from 'zod'
+import { validatePasswordStrength, validateAndNormalizeEmail } from '@/middleware/security'
 
-// User validation schemas
+// Enhanced user validation schemas with security measures
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.enum(['STUDENT', 'FACULTY', 'COMMITTEE'])
+  email: z.string()
+    .email('Invalid email address'),
+  password: z.string()
+    .min(1, 'Password is required')
+    .max(128, 'Password too long')
 })
 
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string()
+    .email('Invalid email address')
+    .transform((email) => {
+      const { isValid, normalized, errors } = validateAndNormalizeEmail(email)
+      if (!isValid) {
+        throw new z.ZodError([{ code: 'custom', message: errors.join(', '), path: ['email'] }])
+      }
+      return normalized
+    }),
+  password: z.string()
+    .min(12, 'Password must be at least 12 characters')
+    .max(128, 'Password too long')
+    .refine((password) => {
+      const { isValid, errors } = validatePasswordStrength(password)
+      if (!isValid) {
+        throw new z.ZodError([{ code: 'custom', message: errors.join(', '), path: ['password'] }])
+      }
+      return true
+    }),
+  name: z.string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name too long')
+    .regex(/^[a-zA-Z\s\-'.]+$/, 'Name contains invalid characters'),
   role: z.enum(['STUDENT', 'FACULTY', 'COMMITTEE']),
-  universityId: z.string().optional()
+  universityId: z.string()
+    .min(1, 'University ID is required')
+    .max(50, 'University ID too long')
+    .regex(/^[a-zA-Z0-9\-_]+$/, 'University ID contains invalid characters')
+    .optional()
 })
 
-// Course validation schemas
+// Enhanced course validation schemas
 export const createCourseSchema = z.object({
-  code: z.string().min(1, 'Course code is required'),
-  name: z.string().min(1, 'Course name is required'),
-  credits: z.number().int().min(1, 'Credits must be at least 1').max(10, 'Credits cannot exceed 10'),
-  levelId: z.string().min(1, 'Level ID is required')
+  code: z.string()
+    .min(1, 'Course code is required')
+    .max(20, 'Course code too long')
+    .regex(/^[A-Z\d\-_]+$/, 'Course code contains invalid characters'),
+  name: z.string()
+    .min(1, 'Course name is required')
+    .max(200, 'Course name too long')
+    .regex(/^[a-zA-Z\d\s\-_.,()]+$/, 'Course name contains invalid characters'),
+  credits: z.number()
+    .int('Credits must be an integer')
+    .min(1, 'Credits must be at least 1')
+    .max(10, 'Credits cannot exceed 10'),
+  levelId: z.string()
+    .min(1, 'Level ID is required')
+    .max(50, 'Level ID too long')
+    .regex(/^[a-zA-Z\d\-_]+$/, 'Level ID contains invalid characters')
 })
 
 export const updateCourseSchema = createCourseSchema.partial()
@@ -56,36 +95,147 @@ export const createSectionSchema = z.object({
 
 export const updateSectionSchema = createSectionSchema.partial()
 
-// Room validation schemas
+// Enhanced room validation schemas
 export const createRoomSchema = z.object({
-  name: z.string().min(1, 'Room name is required'),
-  capacity: z.number().int().min(1, 'Capacity must be at least 1'),
-  location: z.string().optional()
+  name: z.string()
+    .min(1, 'Room name is required')
+    .max(100, 'Room name too long')
+    .regex(/^[a-zA-Z0-9\s\-_.,()]+$/, 'Room name contains invalid characters'),
+  capacity: z.number()
+    .int('Capacity must be an integer')
+    .min(1, 'Capacity must be at least 1')
+    .max(500, 'Capacity cannot exceed 500'),
+  location: z.string()
+    .max(200, 'Location too long')
+    .regex(/^[a-zA-Z0-9\s\-_.,()]+$/, 'Location contains invalid characters')
+    .optional()
 })
 
 export const updateRoomSchema = createRoomSchema.partial()
 
-// Schedule validation schemas
+// Enhanced schedule validation schemas
 export const createScheduleSchema = z.object({
-  name: z.string().min(1, 'Schedule name is required'),
-  status: z.string().optional()
+  name: z.string()
+    .min(1, 'Schedule name is required')
+    .max(200, 'Schedule name too long')
+    .regex(/^[a-zA-Z0-9\s\-_.,()]+$/, 'Schedule name contains invalid characters'),
+  status: z.enum(['DRAFT', 'UNDER_REVIEW', 'APPROVED', 'PUBLISHED', 'ARCHIVED']).optional()
 })
 
 export const updateScheduleSchema = createScheduleSchema.partial()
 
-// Assignment validation schemas
+// Enhanced assignment validation schemas
 export const createAssignmentSchema = z.object({
-  studentId: z.string().min(1, 'Student ID is required'),
-  sectionId: z.string().min(1, 'Section ID is required')
+  studentId: z.string()
+    .min(1, 'Student ID is required')
+    .max(50, 'Student ID too long')
+    .regex(/^[a-zA-Z0-9\-_]+$/, 'Student ID contains invalid characters'),
+  sectionId: z.string()
+    .min(1, 'Section ID is required')
+    .max(50, 'Section ID too long')
+    .regex(/^[a-zA-Z0-9\-_]+$/, 'Section ID contains invalid characters')
 })
 
-// Preference validation schemas
+// Enhanced preference validation schemas
 export const createPreferenceSchema = z.object({
-  type: z.string().min(1, 'Preference type is required'),
-  value: z.string().min(1, 'Preference value is required')
+  type: z.string()
+    .min(1, 'Preference type is required')
+    .max(50, 'Preference type too long')
+    .regex(/^[a-zA-Z0-9\-_]+$/, 'Preference type contains invalid characters'),
+  value: z.string()
+    .min(1, 'Preference value is required')
+    .max(1000, 'Preference value too long')
 })
 
 export const updatePreferenceSchema = createPreferenceSchema.partial()
+
+// Enhanced feedback validation schemas
+export const createFeedbackSchema = z.object({
+  content: z.string()
+    .min(10, 'Feedback must be at least 10 characters')
+    .max(2000, 'Feedback too long')
+    .regex(/^[a-zA-Z\d\s\-_.,()!?@#$%^&*]+$/, 'Feedback contains invalid characters'),
+  rating: z.number()
+    .int('Rating must be an integer')
+    .min(1, 'Rating must be at least 1')
+    .max(5, 'Rating cannot exceed 5')
+    .optional(),
+  scheduleId: z.string()
+    .min(1, 'Schedule ID is required')
+    .max(50, 'Schedule ID too long')
+    .regex(/^[a-zA-Z0-9\-_]+$/, 'Schedule ID contains invalid characters')
+    .optional()
+})
+
+export const updateFeedbackSchema = createFeedbackSchema.partial()
+
+// Enhanced notification validation schemas
+export const createNotificationSchema = z.object({
+  title: z.string()
+    .min(1, 'Title is required')
+    .max(200, 'Title too long')
+    .regex(/^[a-zA-Z0-9\s\-_.,()!?]+$/, 'Title contains invalid characters'),
+  message: z.string()
+    .min(1, 'Message is required')
+    .max(1000, 'Message too long')
+    .regex(/^[a-zA-Z\d\s\-_.,()!?@#$%^&*]+$/, 'Message contains invalid characters'),
+  userId: z.string()
+    .min(1, 'User ID is required')
+    .max(50, 'User ID too long')
+    .regex(/^[a-zA-Z0-9\-_]+$/, 'User ID contains invalid characters')
+})
+
+export const updateNotificationSchema = createNotificationSchema.partial()
+
+// Security-focused validation schemas
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string()
+    .min(12, 'Password must be at least 12 characters')
+    .max(128, 'Password too long')
+    .refine((password) => {
+      const { isValid, errors } = validatePasswordStrength(password)
+      if (!isValid) {
+        throw new z.ZodError([{ code: 'custom', message: errors.join(', '), path: ['newPassword'] }])
+      }
+      return true
+    }),
+  confirmPassword: z.string().min(1, 'Password confirmation is required')
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword']
+})
+
+export const emailChangeSchema = z.object({
+  newEmail: z.string()
+    .email('Invalid email address')
+    .transform((email) => {
+      const { isValid, normalized, errors } = validateAndNormalizeEmail(email)
+      if (!isValid) {
+        throw new z.ZodError([{ code: 'custom', message: errors.join(', '), path: ['newEmail'] }])
+      }
+      return normalized
+    }),
+  password: z.string().min(1, 'Password is required for email change')
+})
+
+// Pagination validation
+export const paginationSchema = z.object({
+  page: z.number().int().min(1, 'Page must be at least 1').max(1000, 'Page too large').default(1),
+  limit: z.number().int().min(1, 'Limit must be at least 1').max(100, 'Limit cannot exceed 100').default(20),
+  sortBy: z.string().max(50, 'Sort field too long').optional(),
+  sortOrder: z.enum(['asc', 'desc']).default('asc')
+})
+
+// Search validation
+export const searchSchema = z.object({
+  query: z.string()
+    .min(1, 'Search query is required')
+    .max(200, 'Search query too long')
+    .regex(/^[a-zA-Z\d\s\-_.,()]+$/, 'Search query contains invalid characters'),
+  filters: z.record(z.string(), z.any()).optional()
+})
+
 
 // Helper function to convert time string to minutes
 function timeToMinutes(timeString: string): number {

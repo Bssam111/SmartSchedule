@@ -1,12 +1,13 @@
 import { Router } from 'express'
 import { prisma } from '@/config/database'
-import { authenticateToken, requireCommittee, AuthRequest } from '@/middleware/auth'
+import { authenticateToken, AuthRequest } from '@/middleware/auth'
+import { requireUserRead } from '@/middleware/rbac'
 import { CustomError } from '@/middleware/errorHandler'
 
 const router = Router()
 
 // GET /api/users
-router.get('/', authenticateToken, requireCommittee, async (req: AuthRequest, res, next) => {
+router.get('/', authenticateToken, requireUserRead, async (req: AuthRequest, res, next) => {
   try {
     const users = await prisma.user.findMany({
       select: {

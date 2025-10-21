@@ -1,0 +1,60 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# package-lock.json is REQUIRED for npm ci - do not exclude!
+
+# Build outputs
+dist
+build
+.next
+out
+
+# Development files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing
+coverage
+.nyc_output
+*.test.ts
+*.spec.ts
+tests
+
+# IDE and Editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Logs
+logs
+*.log
+
+# OS files
+Thumbs.db
+
+# Scripts (keep only necessary ones)
+scripts/*.bat
+scripts/*.sh
+
+# Misc
+.cache
+temp
+tmp

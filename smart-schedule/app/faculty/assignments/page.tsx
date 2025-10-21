@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ProtectedRoute } from '../../../components/ProtectedRoute'
 import { useAuth } from '../../../components/AuthProvider'
+import { AppHeader } from '../../../components/AppHeader'
 
 interface Assignment {
   id: string
@@ -139,28 +140,10 @@ export default function FacultyAssignments() {
   return (
     <ProtectedRoute requiredRole="faculty">
       <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <Link href="/faculty/dashboard" className="text-blue-600 hover:text-blue-800">
-                ← Back to Dashboard
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">My Assignments</h1>
-            </div>
-            <button
-              onClick={refreshAssignments}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader 
+        title="My Assignments" 
+        backFallbackUrl="/faculty/dashboard"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {authState.isLoading || loading ? (

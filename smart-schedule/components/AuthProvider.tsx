@@ -4,7 +4,7 @@ import { AuthService, AuthState, User } from '../lib/auth'
 
 interface AuthContextType {
   authState: AuthState
-  login: (email: string, password: string, role: string) => Promise<{ success: boolean; error?: string }>
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   isAuthenticated: () => boolean
   getCurrentUser: () => User | null
@@ -41,9 +41,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return <>{children}</>
   }
 
-  const login = async (email: string, password: string, role: string) => {
+  const login = async (email: string, password: string) => {
     const authService = AuthService.getInstance()
-    return authService.login(email, password, role)
+    return authService.login(email, password)
   }
 
   const logout = () => {

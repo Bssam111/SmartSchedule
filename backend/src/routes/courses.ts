@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import { prisma } from '@/config/database'
 import { createCourseSchema, updateCourseSchema } from '@/utils/validation'
-import { authenticateToken, requireFacultyOrCommittee, AuthRequest } from '@/middleware/auth'
+import { authenticateToken, AuthRequest } from '@/middleware/auth'
+import { requireCourseCreate, requireCourseUpdate, requireCourseDelete } from '@/middleware/rbac'
 import { CustomError } from '@/middleware/errorHandler'
 
 const router = Router()
@@ -66,7 +67,7 @@ router.get('/:id', async (req, res, next) => {
 })
 
 // POST /api/courses
-router.post('/', authenticateToken, requireFacultyOrCommittee, async (req: AuthRequest, res, next) => {
+router.post('/', authenticateToken, requireCourseCreate, async (req: AuthRequest, res, next) => {
   try {
     const courseData = createCourseSchema.parse(req.body)
 
@@ -97,7 +98,7 @@ router.post('/', authenticateToken, requireFacultyOrCommittee, async (req: AuthR
 })
 
 // PUT /api/courses/:id
-router.put('/:id', authenticateToken, requireFacultyOrCommittee, async (req: AuthRequest, res, next) => {
+router.put('/:id', authenticateToken, requireCourseUpdate, async (req: AuthRequest, res, next) => {
   try {
     const { id } = req.params
     const courseData = updateCourseSchema.parse(req.body)
@@ -141,7 +142,7 @@ router.put('/:id', authenticateToken, requireFacultyOrCommittee, async (req: Aut
 })
 
 // DELETE /api/courses/:id
-router.delete('/:id', authenticateToken, requireFacultyOrCommittee, async (req: AuthRequest, res, next) => {
+router.delete('/:id', authenticateToken, requireCourseDelete, async (req: AuthRequest, res, next) => {
   try {
     const { id } = req.params
 

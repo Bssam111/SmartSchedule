@@ -43,53 +43,55 @@ export class AuthService {
     this.listeners.forEach(listener => listener(this.authState))
   }
 
-  // Login with email, password, and role
-  async login(email: string, password: string, role: string): Promise<{ success: boolean; error?: string }> {
-    console.log('🔐 AuthService.login called with:', { email, password, role })
+  // Login with email and password only (role determined by backend)
+  async login(email: string, password: string): Promise<{ success: boolean; error?: string }> {
+    console.log('🔐 AuthService.login called with:', { email, password })
     this.authState.isLoading = true
     this.notifyListeners()
 
     try {
-      // Mock authentication - in production, this would call your API
-      console.log('🔐 Simulating API call...')
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
+      // Call the actual backend API
+      console.log('🔐 Calling backend API...')
+      const response = await fetch('http://localhost:3002/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include', // Include cookies for JWT tokens
+      })
 
-      // Map to actual database users for demo purposes
-      let user: User
-      
-      // Map common demo emails to database user IDs
-      if (email === 'faculty@university.edu' && role === 'faculty') {
-        user = {
-          id: 'cmg6bgyv70005b7pzt29pdr4k', // Dr. Smith's database ID
-          email,
-          name: 'Dr. Smith',
-          role: role as User['role'],
-        }
-      } else if (email === 'student@university.edu' && role === 'student') {
-        user = {
-          id: 'cmg6bgyv30004b7pz3a6ppa7u', // John Student's database ID
-          email,
-          name: 'John Student',
-          role: role as User['role'],
-        }
-      } else if (email === 'committee@university.edu' && role === 'committee') {
-        user = {
-          id: 'cmg6bgyv80006b7pz95bo7v7x', // Committee's database ID
-          email,
-          name: 'Scheduling Committee',
-          role: role as User['role'],
-        }
-      } else {
-        // For any other credentials, generate a demo user
-        user = {
-          id: `user-${Date.now()}`,
-          email,
-          name: email.split('@')[0],
-          role: role as User['role'],
+      const data = await response.json()
+      console.log('🔐 Backend response:', data)
+
+      if (!response.ok) {
+        // Show the actual error message from the backend
+        const errorMessage = data.message || data.error || 'Login failed'
+        return { 
+          success: false, 
+          error: errorMessage 
         }
       }
 
-      console.log('🔐 Created user:', user)
+      if (!data.success || !data.user) {
+        // Show the actual error message from the backend
+        const errorMessage = data.message || data.error || 'Invalid response from server'
+        return { 
+          success: false, 
+          error: errorMessage 
+        }
+      }
+
+      // Map backend user to frontend user format
+      const user: User = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        universityId: data.user.universityId,
+        role: data.user.role.toLowerCase() as User['role'], // Convert to lowercase
+      }
+
+      console.log('🔐 Mapped user:', user)
 
       this.authState = {
         user,
@@ -112,9 +114,12 @@ export class AuthService {
       console.error('🔐 AuthService login error:', error)
       this.authState.isLoading = false
       this.notifyListeners()
+      
+      // Return error without throwing to prevent Next.js error overlay
+      const errorMessage = error instanceof Error ? error.message : 'Login failed'
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Login failed' 
+        error: errorMessage
       }
     }
   }

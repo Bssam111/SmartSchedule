@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { ProtectedRoute } from '../../../components/ProtectedRoute'
 import { useAuth } from '../../../components/AuthProvider'
+import { AppHeader } from '../../../components/AppHeader'
 
 export default function StudentDashboard() {
   const { getCurrentUser, logout } = useAuth()
@@ -16,53 +17,32 @@ export default function StudentDashboard() {
   return (
     <ProtectedRoute requiredRole="student">
       <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-              <div className="mt-2 flex items-center space-x-6 text-sm text-gray-600">
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium">University ID:</span>
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-mono">
-                    {user?.universityId || 'STU000001'}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium">College:</span>
-                  <span>College of Computer Science</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium">Major:</span>
-                  <span>Computer Science</span>
-                </div>
-              </div>
+      <AppHeader 
+        title="Student Dashboard" 
+        showBack={false}
+      />
+      
+      {/* Student Info Bar */}
+      <div className="bg-blue-50 border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center space-x-6 text-sm text-gray-600">
+            <div className="flex items-center space-x-2">
+              <span className="font-medium">University ID:</span>
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-mono">
+                {user?.universityId || 'STU000001'}
+              </span>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <button className="p-2 text-gray-600 hover:text-gray-900 relative">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 00-15 0v5h5l-5 5-5-5h5" />
-                  </svg>
-                  {notifications.filter(n => n.unread).length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {notifications.filter(n => n.unread).length}
-                    </span>
-                  )}
-                </button>
-              </div>
-              <div className="text-sm text-gray-600">{user?.name || 'Student'}</div>
-              <button 
-                onClick={logout}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                Logout
-              </button>
+            <div className="flex items-center space-x-2">
+              <span className="font-medium">College:</span>
+              <span>College of Computer Science</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="font-medium">Major:</span>
+              <span>Computer Science</span>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">

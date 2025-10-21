@@ -2,7 +2,14 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/config/database'
 import { generateTokens, setTokenCookies, clearTokenCookies, verifyToken } from '@/utils/jwt'
-import { loginSchema, registerSchema } from '@/utils/validation'
+import { registerSchema } from '@/utils/validation'
+import { z } from 'zod'
+
+// Create a simple login schema directly here for testing
+const loginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required')
+})
 import { CustomError } from '@/middleware/errorHandler'
 import { authenticateToken, AuthRequest } from '@/middleware/auth'
 
@@ -67,7 +74,22 @@ router.post('/register', async (req, res, next) => {
 // POST /api/auth/login
 router.post('/login', async (req, res, next) => {
   try {
-    const { email, password, role } = loginSchema.parse(req.body)
+    console.log('🔍 ==> Login endpoint hit!')
+    console.log('🔍 Login request body:', JSON.stringify(req.body))
+    console.log('🔍 Login schema shape:', loginSchema.shape)
+    console.log('🔍 Login schema keys:', Object.keys(loginSchema.shape))
+    
+    // Try to parse and catch any errors
+    let parsed;
+    try {
+      parsed = loginSchema.parse(req.body)
+      console.log('🔍 Parse successful:', parsed)
+    } catch (parseError) {
+      console.log('🔍 Parse error:', parseError)
+      throw parseError
+    }
+    
+    const { email, password } = parsed
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -82,11 +104,6 @@ router.post('/login', async (req, res, next) => {
     const isValidPassword = await bcrypt.compare(password, user.password)
     if (!isValidPassword) {
       throw new CustomError('Invalid credentials', 401)
-    }
-
-    // Verify role
-    if (user.role !== role) {
-      throw new CustomError('Invalid role for this user', 401)
     }
 
     // Generate tokens

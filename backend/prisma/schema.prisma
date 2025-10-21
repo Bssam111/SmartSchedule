@@ -2,7 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -218,4 +219,18 @@ enum UserRole {
   STUDENT
   FACULTY
   COMMITTEE
+}
+
+model SecurityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  resource  String
+  actionType String
+  ip        String
+  userAgent String
+  details   Json
+  timestamp DateTime @default(now())
+
+  @@map("security_logs")
 }

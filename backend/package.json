@@ -10,6 +10,10 @@
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
+    "test:security": "vitest src/tests/security.test.ts",
+    "test:rbac": "vitest src/tests/rbac.test.ts",
+    "test:integration": "vitest src/tests/integration.test.ts",
+    "test:all": "vitest run",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write src/**/*.ts",
@@ -19,7 +23,10 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx src/scripts/seed.ts"
+    "db:seed": "tsx src/scripts/seed.ts",
+    "db:mock-users": "tsx src/scripts/create-mock-users.ts",
+    "security:test": "node scripts/security-test.sh",
+    "deploy:godaddy": "node scripts/deploy-godaddy.sh"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -34,7 +41,18 @@
     "zod": "^3.22.4",
     "dotenv": "^16.3.1",
     "express-rate-limit": "^7.1.5",
-    "express-validator": "^7.0.1"
+    "express-validator": "^7.0.1",
+    "express-slow-down": "^2.0.1",
+    "express-brute": "^1.0.1",
+    "express-brute-redis": "^0.0.1",
+    "redis": "^4.6.10",
+    "winston": "^3.11.0",
+    "morgan": "^1.10.0",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-validator": "^7.0.1",
+    "hpp": "^0.2.3",
+    "xss": "^1.0.14",
+    "validator": "^13.11.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

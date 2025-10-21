@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   },
   // Suppress hydration warnings for browser extensions
   reactStrictMode: true,
+  // Enable standalone output for Docker
+  output: 'standalone',
 };
 
 export default nextConfig;

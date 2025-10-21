@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { AppHeader } from '../../../components/AppHeader'
 
 export default function CommitteeFeedback() {
   const [feedback, setFeedback] = useState([
@@ -75,31 +76,10 @@ export default function CommitteeFeedback() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <Link href="/committee/dashboard" className="text-blue-600 hover:text-blue-800">
-                ← Back to Dashboard
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Feedback Management</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="All">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="In Review">In Review</option>
-                <option value="Resolved">Resolved</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppHeader 
+        title="Feedback Management" 
+        backFallbackUrl="/committee/dashboard"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

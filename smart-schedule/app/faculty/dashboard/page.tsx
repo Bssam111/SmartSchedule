@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ProtectedRoute } from '../../../components/ProtectedRoute'
 import { useAuth } from '../../../components/AuthProvider'
+import { AppHeader } from '../../../components/AppHeader'
 
 interface Assignment {
   id: string
@@ -68,17 +69,10 @@ export default function FacultyDashboard() {
   return (
     <ProtectedRoute requiredRole="faculty">
       <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Faculty Dashboard</h1>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">Dr. Smith</div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppHeader 
+        title="Faculty Dashboard" 
+        showBack={false}
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">
@@ -93,9 +87,6 @@ export default function FacultyDashboard() {
               >
                 Overview
               </button>
-              <Link href="/faculty/availability" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
-                Availability
-              </Link>
               <Link href="/faculty/assignments" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
                 My Assignments
               </Link>

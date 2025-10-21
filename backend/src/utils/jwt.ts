@@ -11,13 +11,24 @@ export const generateTokens = (payload: TokenPayload) => {
   const accessToken = jwt.sign(
     payload,
     process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    { 
+      expiresIn: process.env.JWT_EXPIRES_IN || '15m', // Short-lived access token
+      issuer: process.env.JWT_ISSUER || 'smartschedule-api',
+      audience: process.env.JWT_AUDIENCE || 'smartschedule-client'
+    }
   )
 
   const refreshToken = jwt.sign(
-    { userId: payload.userId },
-    process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' }
+    { 
+      userId: payload.userId,
+      type: 'refresh'
+    },
+    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET!,
+    { 
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d', // Shorter refresh token
+      issuer: process.env.JWT_ISSUER || 'smartschedule-api',
+      audience: process.env.JWT_AUDIENCE || 'smartschedule-client'
+    }
   )
 
   return { accessToken, refreshToken }
@@ -26,21 +37,21 @@ export const generateTokens = (payload: TokenPayload) => {
 export const setTokenCookies = (res: Response, accessToken: string, refreshToken: string) => {
   const isProduction = process.env.NODE_ENV === 'production'
   
-  // Set access token cookie
+  // Set access token cookie (short-lived)
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 15 * 60 * 1000, // 15 minutes
     path: '/'
   })
 
-  // Set refresh token cookie
+  // Set refresh token cookie (longer-lived but still secure)
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/'
   })
 }

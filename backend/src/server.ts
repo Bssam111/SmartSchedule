@@ -9,6 +9,17 @@ import dotenv from 'dotenv'
 
 import { errorHandler } from '@/middleware/errorHandler'
 import { notFoundHandler } from '@/middleware/notFoundHandler'
+import { 
+  securityHeaders, 
+  strictCors, 
+  apiRateLimit, 
+  authRateLimit, 
+  strictApiRateLimit,
+  requestSizeLimit,
+  sanitizeInput,
+  fileUploadSecurity,
+  securityLogger
+} from '@/middleware/security'
 import { authRoutes } from '@/routes/auth'
 import { courseRoutes } from '@/routes/courses'
 import { sectionRoutes } from '@/routes/sections'
@@ -23,6 +34,7 @@ import { generateRoutes } from '@/routes/generate'
 import { facultyRoutes } from '@/routes/faculty'
 import { studentRoutes } from '@/routes/students'
 import { enrollRoutes } from '@/routes/enroll'
+import { rbacTestRoutes } from '@/routes/rbac-test'
 
 // Load environment variables
 dotenv.config()
@@ -30,39 +42,19 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 3001
 
-// Security middleware
-app.use(helmet({
-  crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-}))
+// Enhanced security middleware
+app.use(securityHeaders)
+app.use(strictCors)
+app.use(securityLogger)
+app.use(requestSizeLimit('10mb'))
+app.use(sanitizeInput)
+app.use(fileUploadSecurity)
 
-// CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-}))
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // limit each IP to 100 requests per windowMs
-  message: {
-    error: 'Too many requests from this IP, please try again later.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-})
-
-app.use(limiter)
+// Rate limiting for different endpoint types
+app.use('/api/auth', authRateLimit)
+app.use('/api/users', strictApiRateLimit)
+app.use('/api/schedules', strictApiRateLimit)
+app.use('/api', apiRateLimit)
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }))
@@ -74,6 +66,10 @@ app.use(compression())
 
 // Health check endpoint (before rate limiting)
 app.use('/api/health', healthRoutes)
+
+// Test validation endpoint (temporary)
+import { testValidationRoutes } from '@/routes/test-validation'
+app.use('/api/test', testValidationRoutes)
 
 // API routes
 app.use('/api/auth', authRoutes)
@@ -89,6 +85,7 @@ app.use('/api/generate', generateRoutes)
 app.use('/api/faculty', facultyRoutes)
 app.use('/api/students', studentRoutes)
 app.use('/api/enroll', enrollRoutes)
+app.use('/api/rbac-test', rbacTestRoutes)
 
 // 404 handler
 app.use(notFoundHandler)
