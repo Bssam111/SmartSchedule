@@ -1,0 +1,13 @@
+# Root-level .dockerignore
+node_modules
+npm-debug.log*
+.git
+.gitignore
+.env
+.env.local
+*.md
+!README.md
+.DS_Store
+Thumbs.db
+.vscode
+.idea
