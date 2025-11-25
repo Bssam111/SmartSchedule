@@ -1,13 +1,13 @@
 # ============================================
-# Frontend Dockerfile - SmartSchedule Next.js App
-# Multi-stage build for optimized production
+# Frontend Dockerfile - Next.js 15
+# Multi-stage build for development
 # ============================================
 
 # ===== Stage 1: Dependencies =====
 FROM node:20-alpine AS deps
 LABEL maintainer="SmartSchedule Team"
 
-# Install system dependencies for Prisma
+# Install system dependencies
 RUN apk add --no-cache libc6-compat openssl
 
 WORKDIR /app
@@ -19,32 +19,25 @@ COPY prisma ./prisma/
 # Install dependencies
 RUN npm ci
 
-# Generate Prisma Client
-RUN npx prisma generate
-
+# Generate Prisma Client if needed
+RUN if [ -f "prisma/schema.prisma" ]; then npx prisma generate || true; fi
 
 # ===== Stage 2: Builder =====
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependencies
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/prisma ./prisma
 
-# Copy application source
+# Copy source code
 COPY . .
 
-# Set build-time environment variables
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
+# Build Next.js app (skip in dev mode, will use dev server)
+# RUN npm run build
 
-# Build Next.js application
-# Note: DATABASE_URL will be injected at runtime via docker-compose
-RUN npm run build
-
-
-# ===== Stage 3: Production Runner =====
+# ===== Stage 3: Development Runner =====
 FROM node:20-alpine AS runner
 
 WORKDIR /app
@@ -52,34 +45,33 @@ WORKDIR /app
 # Install runtime dependencies
 RUN apk add --no-cache openssl curl
 
-# Create non-root user for security
+# Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+    adduser --system --uid 1001 nodejs
 
-# Set production environment
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-# Copy necessary files for Next.js
-COPY --from=builder /app/next.config.ts ./
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package*.json ./
-
-# Copy build artifacts with proper ownership
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+# Copy application files
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/tsconfig.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/next.config.ts ./
+COPY --from=builder --chown=nodejs:nodejs /app/tailwind.config.ts ./
+COPY --from=builder --chown=nodejs:nodejs /app/postcss.config.mjs ./
+COPY --from=builder --chown=nodejs:nodejs /app/app ./app
+COPY --from=builder --chown=nodejs:nodejs /app/components ./components
+COPY --from=builder --chown=nodejs:nodejs /app/lib ./lib
+COPY --from=builder --chown=nodejs:nodejs /app/public ./public
+COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
 
 # Switch to non-root user
-USER nextjs
+USER nodejs
 
-# Expose frontend port
+# Expose Next.js port
 EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+  CMD curl -f http://localhost:3000 || exit 1
 
-# Start Next.js server
-CMD ["node", "server.js"]
+# Start Next.js dev server
+CMD ["npm", "run", "dev"]
+

@@ -50,17 +50,78 @@ export default function FacultyDashboard() {
     try {
       setLoading(true)
       console.log('🔄 Loading faculty assignments for dashboard:', facultyId)
-      const response = await fetch(`/api/faculty/assignments?facultyId=${facultyId}`)
+      
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/faculty/assignments`, {
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
       const result = await response.json()
       
-      if (result.success) {
-        setAssignments(result.data)
-        console.log('✅ Loaded dashboard assignments:', result.data.length)
+      if (result.success && result.data) {
+        // Transform backend response to frontend format
+        // Backend returns flat array of assignments, frontend expects grouped by section
+        const assignmentsBySection = new Map<string, Assignment>()
+        
+        result.data.forEach((section: any) => {
+          if (!section) return
+          const sectionId = section.id || 'unknown'
+          if (!assignmentsBySection.has(sectionId)) {
+            // Format time from meetings
+            let timeStr = 'TBD'
+            if (section.meetings && section.meetings.length > 0) {
+              const meeting = section.meetings[0]
+              timeStr = `${meeting.dayOfWeek} ${meeting.startTime} - ${meeting.endTime}`
+            }
+            
+            assignmentsBySection.set(sectionId, {
+              id: sectionId,
+              course: {
+                code: section.course?.code || 'Unknown',
+                name: section.course?.name || 'Unknown Course',
+              },
+              section: section.name || 'Unknown Section',
+              time: timeStr,
+              room: section.room?.name || 'TBD',
+              students: 0,
+              assignments: [],
+            })
+          }
+          
+          const sectionData = assignmentsBySection.get(sectionId)!
+          if (section.assignments && section.assignments.length > 0) {
+            section.assignments.forEach((assignment: any) => {
+              if (!assignment.student) return
+              sectionData.assignments.push({
+                id: assignment.id,
+                student: {
+                  id: assignment.student.id,
+                  name: assignment.student.name,
+                  email: assignment.student.email,
+                },
+              })
+            })
+            sectionData.students = sectionData.assignments.length
+          }
+        })
+        
+        const formattedAssignments = Array.from(assignmentsBySection.values())
+        setAssignments(formattedAssignments)
+        console.log('✅ Loaded dashboard assignments:', formattedAssignments.length, 'sections')
       } else {
         console.error('❌ Error loading assignments:', result.error)
+        setAssignments([])
       }
     } catch (error) {
       console.error('❌ Error loading assignments:', error)
+      setAssignments([])
     } finally {
       setLoading(false)
     }
@@ -89,6 +150,9 @@ export default function FacultyDashboard() {
               </button>
               <Link href="/faculty/assignments" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
                 My Assignments
+              </Link>
+              <Link href="/settings" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
+                Settings
               </Link>
             </nav>
           </aside>

@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "../components/AuthProvider";
-import { NotificationProvider } from "../components/NotificationProvider";
-import { DialogProvider } from "../components/DialogProvider";
-import { Dialog } from "../components/Dialog";
+import { AuthProvider } from "@/components/AuthProvider";
+import { DialogProvider } from "@/components/DialogProvider";
 
 export const metadata: Metadata = {
   title: "SmartSchedule",
-  description: "Academic scheduling web app",
+  description: "University Scheduling System",
 };
 
 export default function RootLayout({
@@ -16,20 +14,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning={true}>
-      <body 
-        className="min-h-screen bg-gray-50 text-gray-900 font-sans"
-        suppressHydrationWarning={true}
-      >
+    <html lang="en">
+      <body>
         <AuthProvider>
-          <NotificationProvider>
-            <DialogProvider>
-              {children}
-              <Dialog />
-            </DialogProvider>
-          </NotificationProvider>
+          <DialogProvider>
+            {children}
+          </DialogProvider>
         </AuthProvider>
       </body>
     </html>
   );
 }
+

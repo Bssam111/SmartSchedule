@@ -1,6 +1,6 @@
 # ============================================
-# Backend Dockerfile - SmartSchedule API
-# Multi-stage build for production-ready image
+# Backend Dockerfile - Production
+# Optimized for production deployment
 # ============================================
 
 # ===== Stage 1: Dependencies =====
@@ -8,7 +8,7 @@ FROM node:20-alpine AS deps
 LABEL maintainer="SmartSchedule Team"
 
 # Install system dependencies for Prisma
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl python3 make g++
 
 WORKDIR /app
 
@@ -16,12 +16,12 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies (including devDependencies for build)
-RUN npm ci
+# Install production dependencies only
+RUN npm ci --only=production && \
+    npm cache clean --force
 
 # Generate Prisma Client
 RUN npx prisma generate
-
 
 # ===== Stage 2: Builder =====
 FROM node:20-alpine AS builder
@@ -35,9 +35,8 @@ COPY --from=deps /app/prisma ./prisma
 # Copy source code
 COPY . .
 
-# Note: Skip TypeScript compilation - will use tsx in production
-# This avoids build-time type errors while maintaining functionality
-
+# Build TypeScript to JavaScript
+RUN npm run build
 
 # ===== Stage 3: Production Runner =====
 FROM node:20-alpine AS runner
@@ -45,28 +44,33 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Install only runtime dependencies
-RUN apk add --no-cache openssl curl
+RUN apk add --no-cache openssl curl tzdata && \
+    cp /usr/share/zoneinfo/UTC /etc/localtime && \
+    echo "UTC" > /etc/timezone
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nodejs
 
-# Copy application source and dependencies
-COPY --from=builder --chown=nodejs:nodejs /app/src ./src
+# Create logs directory
+RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app/logs
+
+# Copy built application
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
-COPY --from=builder --chown=nodejs:nodejs /app/tsconfig.json ./
 
 # Switch to non-root user
 USER nodejs
 
-# Expose API ports
-EXPOSE 3001 3002
+# Expose API port
+EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3001/api/health || exit 1
 
-# Start application with tsx (TypeScript execution)
-CMD ["npx", "tsx", "src/server.ts"]
+# Start application
+CMD ["node", "-r", "tsconfig-paths/register", "dist/server.js"]
+

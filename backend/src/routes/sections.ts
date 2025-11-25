@@ -49,6 +49,140 @@ router.get('/', async (req, res, next) => {
   }
 })
 
+// POST /api/sections/:id/enroll - Committee can enroll students (MUST come before /:id route)
+router.post('/:id/enroll', authenticateToken, requireFacultyOrCommittee, async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params
+    const { studentId, universityId } = req.body
+
+    // Find student by ID or universityId
+    let student
+    if (studentId) {
+      student = await prisma.user.findUnique({
+        where: { id: studentId }
+      })
+    } else if (universityId) {
+      student = await prisma.user.findUnique({
+        where: { universityId }
+      })
+    }
+
+    if (!student || student.role !== 'STUDENT') {
+      throw new CustomError('Student not found', 404)
+    }
+
+    // Check if section exists
+    const section = await prisma.section.findUnique({
+      where: { id },
+      include: {
+        course: true,
+        assignments: true
+      }
+    })
+
+    if (!section) {
+      throw new CustomError('Section not found', 404)
+    }
+
+    // Check if student is already enrolled
+    const existingAssignment = await prisma.assignment.findUnique({
+      where: {
+        studentId_sectionId: {
+          studentId: student.id,
+          sectionId: id
+        }
+      }
+    })
+
+    if (existingAssignment) {
+      throw new CustomError('Student already enrolled in this section', 409)
+    }
+
+    // Create assignment
+    const assignment = await prisma.assignment.create({
+      data: {
+        studentId: student.id,
+        sectionId: id,
+        courseId: section.courseId
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            universityId: true
+          }
+        },
+        section: {
+          include: {
+            course: true
+          }
+        }
+      }
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Student enrolled successfully',
+      data: assignment
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// DELETE /api/sections/:id/unenroll - Committee can unenroll students (MUST come before /:id route)
+router.delete('/:id/unenroll', authenticateToken, requireFacultyOrCommittee, async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params
+    const { studentId } = req.query
+
+    if (!studentId || typeof studentId !== 'string') {
+      throw new CustomError('Student ID is required', 400)
+    }
+
+    // Check if section exists
+    const section = await prisma.section.findUnique({
+      where: { id }
+    })
+
+    if (!section) {
+      throw new CustomError('Section not found', 404)
+    }
+
+    // Find and delete assignment
+    const assignment = await prisma.assignment.findUnique({
+      where: {
+        studentId_sectionId: {
+          studentId: studentId,
+          sectionId: id
+        }
+      }
+    })
+
+    if (!assignment) {
+      throw new CustomError('Student is not enrolled in this section', 404)
+    }
+
+    await prisma.assignment.delete({
+      where: {
+        studentId_sectionId: {
+          studentId: studentId,
+          sectionId: id
+        }
+      }
+    })
+
+    res.json({
+      success: true,
+      message: 'Student unenrolled successfully'
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 // GET /api/sections/:id
 router.get('/:id', async (req, res, next) => {
   try {

@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useDialog } from '../../../components/DialogProvider'
-import { useToast } from '../../../hooks/useToast'
+import { useDialog } from '@/components/DialogProvider'
+import { useToast } from '@/hooks/useToast'
 
 interface Section {
   id: string
@@ -66,7 +66,6 @@ export default function CommitteeSchedules() {
   const [rooms, setRooms] = useState<Room[]>([])
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [students, setStudents] = useState<User[]>([])
-  const [schedules, setSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEnrollModal, setShowEnrollModal] = useState(false)
@@ -80,10 +79,10 @@ export default function CommitteeSchedules() {
     selectedTimeSlots: {} as Record<string, string[]>
   })
   const [enrollmentData, setEnrollmentData] = useState({
-    universityId: '',
-    scheduleId: ''
+    universityId: ''
   })
-  const [searchResult, setSearchResult] = useState<any>(null)
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [formError, setFormError] = useState<string>('')
 
   // Load data on component mount
@@ -102,22 +101,26 @@ export default function CommitteeSchedules() {
     try {
       setLoading(true)
       
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      
       // First, ensure time slots are generated
       try {
-        await fetch('/api/timeslots/generate', { method: 'POST' })
+        await fetch(`${API_BASE_URL}/timeslots/generate`, { 
+          method: 'POST',
+          credentials: 'include'
+        })
       } catch (error) {
         console.log('Time slots may already exist, continuing...')
       }
       
       // Load all data in parallel
-      const [sectionsRes, coursesRes, instructorsRes, roomsRes, timeSlotsRes, studentsRes, schedulesRes] = await Promise.all([
-        fetch('/api/sections'),
-        fetch('/api/courses'),
-        fetch('/api/users'),
-        fetch('/api/rooms'),
-        fetch('/api/timeslots'),
-        fetch('/api/students'),
-        fetch('/api/schedules')
+      const [sectionsRes, coursesRes, instructorsRes, roomsRes, timeSlotsRes, studentsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/sections`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/courses`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/users/instructors`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/rooms`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/timeslots`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/students`, { credentials: 'include' })
       ])
 
       // Check each response
@@ -127,8 +130,7 @@ export default function CommitteeSchedules() {
         { res: instructorsRes, name: 'instructors' },
         { res: roomsRes, name: 'rooms' },
         { res: timeSlotsRes, name: 'timeSlots' },
-        { res: studentsRes, name: 'students' },
-        { res: schedulesRes, name: 'schedules' }
+        { res: studentsRes, name: 'students' }
       ]
 
       for (const { res, name } of responses) {
@@ -137,14 +139,13 @@ export default function CommitteeSchedules() {
         }
       }
 
-      const [sectionsData, coursesData, instructorsData, roomsData, timeSlotsData, studentsData, schedulesData] = await Promise.all([
+      const [sectionsData, coursesData, instructorsData, roomsData, timeSlotsData, studentsData] = await Promise.all([
         sectionsRes.json().catch(() => ({ success: false, data: [] })),
         coursesRes.json().catch(() => ({ success: false, data: [] })),
         instructorsRes.json().catch(() => ({ success: false, data: [] })),
         roomsRes.json().catch(() => ({ success: false, data: [] })),
         timeSlotsRes.json().catch(() => ({ success: false, data: [] })),
-        studentsRes.json().catch(() => ({ success: false, data: [] })),
-        schedulesRes.json().catch(() => ({ success: false, data: [] }))
+        studentsRes.json().catch(() => ({ success: false, data: [] }))
       ])
 
       if (sectionsData.success) setSections(sectionsData.data)
@@ -153,7 +154,6 @@ export default function CommitteeSchedules() {
       if (roomsData.success) setRooms(roomsData.data)
       if (timeSlotsData.success) setTimeSlots(timeSlotsData.data)
       if (studentsData.success) setStudents(studentsData.data)
-      if (schedulesData.success) setSchedules(schedulesData.data)
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
@@ -213,7 +213,9 @@ export default function CommitteeSchedules() {
       console.log('📝 Selected time slots:', newSection.selectedTimeSlots)
       console.log('📝 Built meetings:', meetings)
 
-      const response = await fetch('/api/sections', {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/sections`, {
+        credentials: 'include',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -446,7 +448,9 @@ export default function CommitteeSchedules() {
 
     try {
       console.log('🗑️ Sending DELETE request to:', `/api/sections/${id}`)
-      const response = await fetch(`/api/sections/${id}`, {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/sections/${id}`, {
+        credentials: 'include',
         method: 'DELETE',
       })
 
@@ -480,13 +484,25 @@ export default function CommitteeSchedules() {
     }
 
     try {
-      const response = await fetch(`/api/students/search?universityId=${enrollmentData.universityId}`)
+      setSelectedStudent(null)
+      setSearchResults([])
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/students/search?universityId=${enrollmentData.universityId}`, {
+        credentials: 'include'
+      })
       const result = await response.json()
 
       if (result.success) {
-        setSearchResult(result.data)
+        const students = Array.isArray(result.data) ? result.data : []
+        setSearchResults(students)
+        if (students.length === 1) {
+          setSelectedStudent(students[0])
+        }
+        if (students.length === 0) {
+          error('No students found for that ID pattern.')
+        }
       } else {
-        setSearchResult(null)
+        setSearchResults([])
         error('Student not found: ' + result.error)
       }
     } catch (error) {
@@ -496,10 +512,10 @@ export default function CommitteeSchedules() {
   }
 
   const enrollStudent = async () => {
-    if (!enrollmentData.universityId || !enrollmentData.scheduleId) {
+    if (!enrollmentData.universityId) {
       showDialog({
         title: 'Missing Information',
-        message: 'Please enter University ID and select a schedule',
+        message: 'Please enter a University ID',
         type: 'warning'
       })
       return
@@ -514,29 +530,35 @@ export default function CommitteeSchedules() {
       return
     }
 
-    if (!searchResult) {
+    if (!selectedStudent) {
       showDialog({
         title: 'Student Not Found',
-        message: 'Please search for the student first',
+        message: 'Please search and select the student first',
         type: 'warning'
       })
       return
     }
 
     try {
-      const response = await fetch(`/api/sections/${selectedSection.id}/enroll`, {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/sections/${selectedSection.id}/enroll`, {
+        credentials: 'include',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(enrollmentData)
+        body: JSON.stringify({
+          universityId: enrollmentData.universityId,
+          studentId: selectedStudent?.id
+        })
       })
 
       const result = await response.json()
 
       if (result.success) {
-        setEnrollmentData({ universityId: '', scheduleId: '' })
-        setSearchResult(null)
+        setEnrollmentData({ universityId: '' })
+        setSearchResults([])
+        setSelectedStudent(null)
         setShowEnrollModal(false)
         setSelectedSection(null)
         loadData() // Reload data
@@ -559,7 +581,9 @@ export default function CommitteeSchedules() {
     
     if (confirmed) {
       try {
-        const response = await fetch(`/api/sections/${sectionId}/unenroll?studentId=${studentId}`, {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        const response = await fetch(`${API_BASE_URL}/sections/${sectionId}/unenroll?studentId=${studentId}`, {
+          credentials: 'include',
           method: 'DELETE'
         })
         const result = await response.json()
@@ -916,29 +940,34 @@ export default function CommitteeSchedules() {
                     Search
                   </button>
                 </div>
-                {searchResult && (
-                  <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-800">
-                      <strong>Found:</strong> {searchResult.name} ({searchResult.email}) - {searchResult.universityId}
+                {searchResults.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-gray-500">
+                      {searchResults.length} match{searchResults.length > 1 ? 'es' : ''} found. Select one:
                     </p>
+                    <div className="max-h-48 overflow-auto space-y-2">
+                      {searchResults.map(student => {
+                        const isSelected = selectedStudent?.id === student.id
+                        return (
+                          <button
+                            key={student.id}
+                            onClick={() => setSelectedStudent(student)}
+                            className={`w-full text-left px-3 py-2 rounded-lg border text-sm ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50 text-blue-800'
+                                : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                            }`}
+                          >
+                            <span className="font-semibold">{student.name}</span>
+                            <span className="block text-xs text-gray-500">
+                              {student.email} • {student.universityId}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 )}
-              </div>
-              <div>
-                <label htmlFor="schedule-select" className="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
-                <select
-                  id="schedule-select"
-                  value={enrollmentData.scheduleId}
-                  onChange={(e) => setEnrollmentData({...enrollmentData, scheduleId: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select a schedule</option>
-                  {schedules.map(schedule => (
-                    <option key={schedule.id} value={schedule.id}>
-                      {schedule.name} ({schedule.status})
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
             <div className="flex justify-end space-x-3 mt-6">
@@ -946,8 +975,9 @@ export default function CommitteeSchedules() {
                 onClick={() => {
                   setShowEnrollModal(false)
                   setSelectedSection(null)
-                  setEnrollmentData({ universityId: '', scheduleId: '' })
-                  setSearchResult(null)
+                  setEnrollmentData({ universityId: '' })
+                  setSearchResults([])
+                  setSelectedStudent(null)
                 }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >

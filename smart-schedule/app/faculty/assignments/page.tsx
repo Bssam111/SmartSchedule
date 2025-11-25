@@ -1,69 +1,63 @@
 'use client'
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
 import { ProtectedRoute } from '../../../components/ProtectedRoute'
 import { useAuth } from '../../../components/AuthProvider'
 import { AppHeader } from '../../../components/AppHeader'
 
-interface Assignment {
+interface SectionAssignment {
   id: string
-  course: {
-    code: string
-    name: string
-  }
-  section: string
-  time: string
-  room: string
-  students: number
+  course: { code: string; name: string }
+  room?: { name: string } | null
+  meetings: Array<{ id: string; dayOfWeek: string; startTime: string; endTime: string }>
   assignments: Array<{
     id: string
-    student: {
-      id: string
-      name: string
-      email: string
-    }
+    student: { id: string; name: string; email: string }
   }>
 }
+
+const meetingIcon = (
+  <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10m6 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+)
+
+const roomIcon = (
+  <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9l9-6 9 6M4 10h16v10H4z" />
+  </svg>
+)
+
+const rosterIcon = (
+  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A4 4 0 007 19h10a4 4 0 001.879-.496L12 13.5z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 13.5l-5-3.5A4 4 0 017 3h10a4 4 0 015 7l-5 3.5" />
+  </svg>
+)
 
 export default function FacultyAssignments() {
   const { getCurrentUser, authState } = useAuth()
   const user = getCurrentUser()
-  const [assignments, setAssignments] = useState<Assignment[]>([])
-  const [loading, setLoading] = useState(true)
-  
-  // Get faculty ID from authenticated user (now maps to database ID)
   const facultyId = user?.id
-  
-  // Debug logging with request ID
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  console.log(`[${requestId}] 🔍 Faculty Assignments - User object:`, user)
-  console.log(`[${requestId}] 🔍 Faculty Assignments - Faculty ID:`, facultyId)
-  console.log(`[${requestId}] 🔍 Faculty Assignments - Auth state:`, authState)
-  
+  const [assignments, setAssignments] = useState<SectionAssignment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    // Only load assignments if auth is not loading, user is authenticated, and we have a faculty ID
     if (!authState.isLoading && authState.isAuthenticated && facultyId) {
       loadAssignments()
-    } else if (!authState.isLoading && !authState.isAuthenticated) {
-      setLoading(false)
-    } else if (!authState.isLoading && !facultyId) {
+    } else if (!authState.isLoading) {
       setLoading(false)
     }
   }, [facultyId, authState.isLoading, authState.isAuthenticated])
 
-  // Listen for section creation events to refresh assignments
   useEffect(() => {
     const handleSectionCreated = (event: CustomEvent) => {
       const { instructorId } = event.detail
-      
-      // Only refresh if the section was created for this faculty member
       if (instructorId === facultyId) {
         loadAssignments()
       }
     }
 
-    // Also refresh when the page becomes visible (in case user navigates here after section creation)
     const handleVisibilityChange = () => {
       if (!document.hidden && facultyId) {
         loadAssignments()
@@ -72,7 +66,7 @@ export default function FacultyAssignments() {
 
     window.addEventListener('sectionCreated', handleSectionCreated as EventListener)
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    
+
     return () => {
       window.removeEventListener('sectionCreated', handleSectionCreated as EventListener)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
@@ -80,147 +74,167 @@ export default function FacultyAssignments() {
   }, [facultyId])
 
   const loadAssignments = async () => {
-    const loadRequestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
     if (!facultyId) {
-      console.log(`[${loadRequestId}] ❌ No faculty ID available for loading assignments`)
       setLoading(false)
       return
     }
-    
+
     try {
       setLoading(true)
-      console.log(`[${loadRequestId}] 🔄 Loading assignments for faculty ID:`, facultyId)
-      
-      const timestamp = Date.now()
-      const apiUrl = `/api/faculty/assignments?facultyId=${facultyId}&t=${timestamp}`
-      console.log(`[${loadRequestId}] 🔄 API URL:`, apiUrl)
-      
-      // Add timeout to prevent infinite loading
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
-      
-      const response = await fetch(apiUrl, { signal: controller.signal })
-      clearTimeout(timeoutId)
-      
-      console.log(`[${loadRequestId}] 🔄 Response status:`, response.status)
-      
+      setError('')
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/faculty/assignments`, {
+        credentials: 'include'
+      })
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
-      
+
       const result = await response.json()
-      console.log(`[${loadRequestId}] 📋 Faculty assignments response:`, result)
-      
-      if (result.success) {
+
+      if (result.success && Array.isArray(result.data)) {
         setAssignments(result.data)
-        console.log(`[${loadRequestId}] ✅ Loaded assignments:`, result.data.length, 'assignments')
       } else {
-        console.error(`[${loadRequestId}] ❌ Error loading assignments:`, result.error)
-        setAssignments([]) // Clear assignments on error
+        setAssignments([])
+        setError(result.error || 'No assignments available.')
       }
-    } catch (error) {
-      console.error(`[${loadRequestId}] ❌ Error loading assignments:`, error)
-      setAssignments([]) // Clear assignments on error
-      
-      // Show error message to user
-      if (error.name === 'AbortError') {
-        console.error(`[${loadRequestId}] ⏰ Request timed out after 15 seconds`)
-      }
+    } catch (error: any) {
+      setAssignments([])
+      setError(error.message || 'Unable to load assignments.')
     } finally {
       setLoading(false)
     }
   }
 
-  // Add refresh function that can be called externally
-  const refreshAssignments = () => {
-    loadAssignments()
-  }
+  const summaryStats = useMemo(() => {
+    const totalSections = assignments.length
+    const totalStudents = assignments.reduce((sum, a) => sum + (a.assignments?.length || 0), 0)
+    const rooms = new Set(assignments.map(a => a.room?.name || 'TBD')).size
+    return { totalSections, totalStudents, rooms }
+  }, [assignments])
 
   return (
     <ProtectedRoute requiredRole="faculty">
-      <div className="min-h-screen bg-gray-50">
-      <AppHeader 
-        title="My Assignments" 
-        backFallbackUrl="/faculty/dashboard"
-      />
+      <div className="min-h-screen bg-slate-50">
+        <AppHeader title="My Teaching Assignments" backFallbackUrl="/faculty/dashboard" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {authState.isLoading || loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">
-                {authState.isLoading ? 'Loading authentication...' : 'Loading assignments...'}
-              </p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <p className="text-sm text-slate-500">Assigned Sections</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">{summaryStats.totalSections}</p>
+              <p className="text-xs text-slate-400 mt-1">Across all schedules</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <p className="text-sm text-slate-500">Total Students</p>
+              <p className="mt-2 text-3xl font-bold text-emerald-600">{summaryStats.totalStudents}</p>
+              <p className="text-xs text-slate-400 mt-1">Enrolled across sections</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <p className="text-sm text-slate-500">Rooms Utilized</p>
+              <p className="mt-2 text-3xl font-bold text-indigo-600">{summaryStats.rooms}</p>
+              <p className="text-xs text-slate-400 mt-1">Unique teaching spaces</p>
             </div>
           </div>
-        ) : assignments.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="mx-auto h-12 w-12 text-gray-400">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+
+          {authState.isLoading || loading ? (
+            <div className="flex items-center justify-center py-12 text-slate-500">Loading assignments...</div>
+          ) : assignments.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
+              <p className="text-lg font-semibold text-slate-900">No assignments yet</p>
+              <p className="text-sm text-slate-500 mt-1">You will see a section here once the committee assigns you.</p>
             </div>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No assignments</h3>
-            <p className="mt-1 text-sm text-gray-500">You haven't been assigned to any courses yet.</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {assignments.map((assignment) => (
-              <div key={assignment.id} className="bg-white shadow-sm rounded-lg overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              {assignments.map(section => (
+                <div key={section.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {assignment.course.code} - {assignment.course.name}
+                      <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Course</p>
+                      <h3 className="text-2xl font-semibold text-slate-900">
+                        {section.course?.code} • {section.course?.name}
                       </h3>
-                      <p className="text-sm text-gray-600">
-                        Section {assignment.section} • {assignment.time} • {assignment.room}
-                      </p>
                     </div>
-                    <div className="text-right">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {assignment.students} students
+                    <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-2 text-sm text-slate-600">
+                      {roomIcon}
+                      <span>
+                        Room{' '}
+                        <strong className="text-slate-900">
+                          {section.room?.name || 'TBD'}
+                        </strong>
                       </span>
                     </div>
                   </div>
-                </div>
-                
-                <div className="px-6 py-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Student Roster</h4>
-                  {assignment.assignments.length === 0 ? (
-                    <p className="text-sm text-gray-500">No students assigned yet.</p>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {assignment.assignments.map((studentAssignment) => (
-                        <div key={studentAssignment.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                          <div className="flex-shrink-0">
-                            <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-medium text-white">
-                                {studentAssignment.student.name.charAt(0)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {studentAssignment.student.name}
-                            </p>
-                            <p className="text-xs text-gray-500 truncate">
-                              {studentAssignment.student.email}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-indigo-700 font-semibold">
+                        {meetingIcon}
+                        Weekly Meetings
+                      </div>
+                      <ul className="mt-2 space-y-1 text-indigo-900 text-sm">
+                        {section.meetings && section.meetings.length > 0 ? (
+                          section.meetings.map(meeting => (
+                            <li key={meeting.id}>
+                              {meeting.dayOfWeek} · {meeting.startTime}-{meeting.endTime}
+                            </li>
+                          ))
+                        ) : (
+                          <li className="text-indigo-500">Schedule TBD</li>
+                        )}
+                      </ul>
                     </div>
-                  )}
+
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                        {rosterIcon}
+                        Student Roster
+                      </div>
+                      <p className="mt-2 text-sm text-emerald-900">
+                        {section.assignments?.length || 0} students enrolled
+                      </p>
+                      <div className="mt-3 space-y-2 max-h-40 overflow-auto pr-2">
+                        {section.assignments && section.assignments.length > 0 ? (
+                          section.assignments.map(student => (
+                            <div
+                              key={student.id}
+                              className="flex items-center justify-between bg-white rounded-lg px-3 py-2 text-sm"
+                            >
+                              <span className="font-medium text-slate-900">{student.student.name}</span>
+                              <span className="text-xs text-slate-500">{student.student.email}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-emerald-700">No students assigned yet.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-sm text-slate-500">Section ID</p>
+                      <p className="text-lg font-semibold text-slate-900">
+                        {section.id.slice(-6).toUpperCase()}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-4">Need to adjust availability?</p>
+                      <a
+                        href="/settings"
+                        className="mt-2 inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+                      >
+                        Update preferences
+                        <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+          {error && <p className="text-sm text-rose-600">{error}</p>}
+        </div>
       </div>
-    </div>
     </ProtectedRoute>
   )
 }

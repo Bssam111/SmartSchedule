@@ -1,4 +1,5 @@
 'use client'
+
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from './AuthProvider'
@@ -6,56 +7,72 @@ import { useAuth } from './AuthProvider'
 interface ProtectedRouteProps {
   children: React.ReactNode
   requiredRole?: 'student' | 'faculty' | 'committee'
-  redirectTo?: string
 }
 
-export function ProtectedRoute({ 
-  children, 
-  requiredRole, 
-  redirectTo = '/login' 
-}: ProtectedRouteProps) {
-  const { authState, hasRole } = useAuth()
+export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+  const { user, loading, authState } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!authState.isLoading) {
-      if (!authState.isAuthenticated) {
-        router.push(redirectTo)
-        return
+    if (!loading && !authState.isAuthenticated) {
+      router.push('/login')
+      return
+    }
+
+    if (!loading && authState.isAuthenticated && requiredRole) {
+      const userRole = user?.role?.toLowerCase() || ''
+      const normalizedRequiredRole = requiredRole.toLowerCase()
+
+      // Map backend roles to frontend roles
+      const roleMap: Record<string, string> = {
+        'student': 'student',
+        'faculty': 'faculty',
+        'committee': 'committee',
       }
 
-      if (requiredRole && !hasRole(requiredRole)) {
+      const userRoleNormalized = roleMap[userRole] || userRole
+      
+      if (userRoleNormalized !== normalizedRequiredRole) {
         // Redirect to appropriate dashboard based on user's actual role
-        const user = authState.user
-        if (user) {
-          if (user.role === 'student') {
-            router.push('/student/dashboard')
-          } else if (user.role === 'faculty') {
-            router.push('/faculty/dashboard')
-          } else if (user.role === 'committee') {
-            router.push('/committee/dashboard')
-          }
+        if (userRole === 'student' || userRoleNormalized === 'student') {
+          router.push('/student/dashboard')
+        } else if (userRole === 'faculty' || userRoleNormalized === 'faculty') {
+          router.push('/faculty/dashboard')
+        } else if (userRole === 'committee' || userRoleNormalized === 'committee') {
+          router.push('/committee/dashboard')
         } else {
-          router.push(redirectTo)
+          router.push('/')
         }
-        return
       }
     }
-  }, [authState, requiredRole, redirectTo, router, hasRole])
+  }, [loading, authState.isAuthenticated, user, requiredRole, router])
 
-  // Show loading state while checking authentication
-  if (authState.isLoading) {
+  if (loading || !authState.isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
       </div>
     )
   }
 
-  // Don't render children if not authenticated or wrong role
-  if (!authState.isAuthenticated || (requiredRole && !hasRole(requiredRole))) {
-    return null
+  if (requiredRole) {
+    const userRole = user?.role?.toLowerCase() || ''
+    const normalizedRequiredRole = requiredRole.toLowerCase()
+    const roleMap: Record<string, string> = {
+      'student': 'student',
+      'faculty': 'faculty',
+      'committee': 'committee',
+    }
+    const userRoleNormalized = roleMap[userRole] || userRole
+
+    if (userRoleNormalized !== normalizedRequiredRole) {
+      return null // Will redirect in useEffect
+    }
   }
 
   return <>{children}</>
 }
+

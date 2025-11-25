@@ -1,600 +1,592 @@
 # SmartSchedule Deployment Guide
 
+Complete guide for deploying SmartSchedule to production at `smartschedule24.com`.
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Prerequisites](#prerequisites)
+3. [Deployment Options](#deployment-options)
+4. [Option 1: VPS Deployment (DigitalOcean, AWS EC2, etc.)](#option-1-vps-deployment)
+5. [Option 2: Platform as a Service (Railway, Render, etc.)](#option-2-platform-as-a-service)
+6. [DNS Configuration](#dns-configuration)
+7. [SSL Certificate Setup](#ssl-certificate-setup)
+8. [Production Deployment Steps](#production-deployment-steps)
+9. [Monitoring & Maintenance](#monitoring--maintenance)
+10. [Troubleshooting](#troubleshooting)
+
+---
+
 ## Overview
 
-This guide covers deploying the SmartSchedule application to GoDaddy VPS with SSL, security hardening, and production-ready configuration.
+SmartSchedule consists of:
+- **Frontend**: Next.js 15 application (port 3000)
+- **Backend**: Express/TypeScript API (port 3001)
+- **Database**: PostgreSQL
+- **Cache**: Redis (for rate limiting & sessions)
+- **Reverse Proxy**: Nginx (HTTPS termination)
 
-## Architecture Decision
+Your domain `smartschedule24.com` is registered with GoDaddy, but you'll need to host the application on a cloud provider.
 
-**Chosen Path: GoDaddy VPS (Option B)**
-
-**Justification:**
-- Full control over Node.js/PostgreSQL stack
-- Better performance for API-heavy applications
-- Enhanced security posture with custom configurations
-- Docker support for consistent deployments
-- Better suited for the Express.js + Prisma + PostgreSQL stack
+---
 
 ## Prerequisites
 
-- GoDaddy VPS with Ubuntu 20.04+ LTS
-- Domain name configured in GoDaddy DNS
-- SSH access to VPS
-- Basic knowledge of Linux commands
+- Domain name: `smartschedule24.com` (GoDaddy)
+- Cloud hosting account (choose one):
+  - **VPS**: DigitalOcean ($6-12/month), Linode, Vultr
+  - **PaaS**: Railway (~$5-20/month), Render (free tier available)
+  - **Cloud**: AWS EC2, Google Cloud Run, Azure
+- Basic command-line knowledge
+- SSH access to your server (for VPS option)
 
-## Step 1: VPS Setup and Security
+---
 
-### 1.1 Initial Server Configuration
+## Deployment Options
+
+### Quick Comparison
+
+| Option | Cost | Complexity | Best For |
+|--------|------|------------|----------|
+| **VPS (DigitalOcean)** | $6-12/month | Medium | Full control, production |
+| **Railway** | $5-20/month | Low | Quick deployment |
+| **Render** | Free-$7/month | Low | Cost-effective start |
+| **AWS EC2** | $10-30/month | High | Enterprise needs |
+
+---
+
+## Option 1: VPS Deployment
+
+Recommended for production with full control. Steps below use DigitalOcean as an example.
+
+### Step 1: Create VPS Droplet
+
+1. Sign up at [DigitalOcean](https://www.digitalocean.com)
+2. Create a new Droplet:
+   - **OS**: Ubuntu 22.04 LTS
+   - **Plan**: Basic ($12/month, 2GB RAM minimum)
+   - **Region**: Choose closest to your users
+   - **Authentication**: SSH keys (recommended) or password
+
+### Step 2: Initial Server Setup
+
+SSH into your server:
+
+```bash
+ssh root@YOUR_SERVER_IP
+```
+
+Update system and install Docker:
 
 ```bash
 # Update system
-sudo apt update && sudo apt upgrade -y
+apt update && apt upgrade -y
 
-# Create deployment user
-sudo adduser deploy
-sudo usermod -aG sudo deploy
-sudo usermod -aG docker deploy
-
-# Configure SSH (disable root login, use key-based auth)
-sudo nano /etc/ssh/sshd_config
-# Set: PermitRootLogin no, PasswordAuthentication no
-sudo systemctl restart ssh
-
-# Install fail2ban for security
-sudo apt install fail2ban -y
-sudo systemctl enable fail2ban
-sudo systemctl start fail2ban
-```
-
-### 1.2 Firewall Configuration
-
-```bash
-# Configure UFW firewall
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow ssh
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw enable
-```
-
-## Step 2: Install Dependencies
-
-### 2.1 Install Docker and Docker Compose
-
-```bash
 # Install Docker
 curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker deploy
+sh get-docker.sh
 
 # Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+apt install docker-compose-plugin -y
 
 # Verify installation
 docker --version
-docker-compose --version
+docker compose version
+
+# Add non-root user (optional but recommended)
+adduser deploy
+usermod -aG docker deploy
+usermod -aG sudo deploy
 ```
 
-### 2.2 Install Node.js and PM2
+### Step 3: Clone Repository
 
 ```bash
-# Install Node.js 20.x
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
+# Install Git
+apt install git -y
 
-# Install PM2 globally
-sudo npm install -g pm2
+# Clone your repository
+cd /opt
+git clone https://github.com/YOUR_USERNAME/SmartSchedule.git
+cd SmartSchedule
 
-# Install Nginx
-sudo apt install nginx -y
+# Or upload files via SCP/SFTP
 ```
 
-## Step 3: Database Setup
-
-### 3.1 Install PostgreSQL
+### Step 4: Configure Environment Variables
 
 ```bash
-# Install PostgreSQL
-sudo apt install postgresql postgresql-contrib -y
+# Copy example file
+cp .env.production.example .env.production
 
-# Configure PostgreSQL
-sudo -u postgres psql
-```
-
-```sql
--- Create database and user
-CREATE DATABASE smartschedule;
-CREATE USER smartschedule_user WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE smartschedule TO smartschedule_user;
-\q
-```
-
-### 3.2 Configure PostgreSQL Security
-
-```bash
-# Edit PostgreSQL configuration
-sudo nano /etc/postgresql/14/main/postgresql.conf
-# Set: listen_addresses = 'localhost'
-
-sudo nano /etc/postgresql/14/main/pg_hba.conf
-# Ensure only local connections: local all all md5
-
-sudo systemctl restart postgresql
-```
-
-## Step 4: Application Deployment
-
-### 4.1 Clone and Setup Application
-
-```bash
-# Switch to deploy user
-su - deploy
-
-# Clone repository
-git clone https://github.com/your-username/smartschedule.git
-cd smartschedule
-
-# Install dependencies
-npm install
-
-# Build application
-npm run build
-```
-
-### 4.2 Environment Configuration
-
-```bash
-# Create production environment file
-cp backend/env.example .env.production
-
-# Edit environment variables
+# Edit with secure values
 nano .env.production
 ```
 
-**Production Environment Variables:**
+**Critical values to change:**
+- `POSTGRES_PASSWORD`: Generate strong password (32+ characters)
+- `JWT_SECRET`: Generate random string (at least 32 characters)
+- `REDIS_PASSWORD`: Generate strong password
 
-```env
-# Database
-DATABASE_URL="postgresql://smartschedule_user:your_secure_password@localhost:5432/smartschedule?schema=public"
-
-# JWT Security (GENERATE NEW SECRETS!)
-JWT_SECRET="your-super-secret-jwt-key-256-bits-minimum"
-JWT_REFRESH_SECRET="your-super-secret-refresh-key-256-bits-minimum"
-JWT_EXPIRES_IN="15m"
-JWT_REFRESH_EXPIRES_IN="7d"
-JWT_ISSUER="smartschedule-api"
-JWT_AUDIENCE="smartschedule-client"
-
-# Server
-PORT=3001
-NODE_ENV="production"
-
-# CORS & Security
-FRONTEND_URL="https://yourdomain.com"
-ALLOWED_ORIGINS="https://yourdomain.com,https://www.yourdomain.com"
-
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
-
-# Security Headers
-HSTS_MAX_AGE=31536000
-CSP_REPORT_URI="https://yourdomain.com/csp-report"
-
-# File Upload
-MAX_FILE_SIZE="5mb"
-ALLOWED_FILE_TYPES="image/jpeg,image/png,image/gif,application/pdf,text/plain"
-
-# Admin IP Whitelist
-ADMIN_IP_WHITELIST="your.office.ip,backup.server.ip"
-
-# Logging
-LOG_LEVEL="info"
-SECURITY_LOG_RETENTION_DAYS="90"
-```
-
-### 4.3 Database Migration
+Generate secure passwords:
 
 ```bash
-# Run database migrations
-cd backend
-npx prisma migrate deploy
-npx prisma generate
-
-# Seed initial data (if needed)
-npm run db:seed
+# Generate random passwords
+openssl rand -base64 32  # For JWT_SECRET
+openssl rand -base64 32  # For POSTGRES_PASSWORD
+openssl rand -base64 32  # For REDIS_PASSWORD
 ```
 
-## Step 5: SSL Certificate Setup
+### Step 5: Configure DNS (GoDaddy)
 
-### 5.1 Install Certbot
+1. Log into [GoDaddy](https://www.godaddy.com)
+2. Go to **My Products** → **Domains** → `smartschedule24.com`
+3. Click **DNS** or **Manage DNS**
+4. Update DNS records:
+
+```
+Type    Name    Value              TTL
+A       @       YOUR_SERVER_IP     600
+A       www     YOUR_SERVER_IP     600
+```
+
+**Example:**
+- If your server IP is `123.45.67.89`, set:
+  - A record `@` → `123.45.67.89`
+  - A record `www` → `123.45.67.89`
+
+5. **Wait 5-30 minutes** for DNS propagation
+
+Verify DNS:
+
+```bash
+dig smartschedule24.com
+# or
+nslookup smartschedule24.com
+```
+
+### Step 6: Setup SSL Certificate (Let's Encrypt)
+
+Before starting containers, obtain SSL certificate:
 
 ```bash
 # Install Certbot
-sudo apt install certbot python3-certbot-nginx -y
+apt install certbot -y
+
+# Stop nginx if running
+docker compose -f docker-compose.prod.yml down
+
+# Obtain certificate (replace with your email)
+certbot certonly --standalone -d smartschedule24.com -d www.smartschedule24.com --email your-email@example.com --agree-tos --non-interactive
+
+# Certificates will be in:
+# /etc/letsencrypt/live/smartschedule24.com/fullchain.pem
+# /etc/letsencrypt/live/smartschedule24.com/privkey.pem
+
+# Copy certificates to nginx/ssl
+cp /etc/letsencrypt/live/smartschedule24.com/fullchain.pem nginx/ssl/
+cp /etc/letsencrypt/live/smartschedule24.com/privkey.pem nginx/ssl/
+
+# Set proper permissions
+chmod 644 nginx/ssl/fullchain.pem
+chmod 600 nginx/ssl/privkey.pem
 ```
 
-### 5.2 Configure Nginx
+**Auto-renewal setup:**
 
 ```bash
-# Create Nginx configuration
-sudo nano /etc/nginx/sites-available/smartschedule
+# Create renewal script
+cat > /etc/cron.monthly/renew-ssl.sh << 'EOF'
+#!/bin/bash
+certbot renew --quiet --deploy-hook "docker compose -f /opt/SmartSchedule/docker-compose.prod.yml restart nginx"
+EOF
+
+chmod +x /etc/cron.monthly/renew-ssl.sh
 ```
 
-**Nginx Configuration:**
-
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com www.yourdomain.com;
-    
-    # Redirect HTTP to HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name yourdomain.com www.yourdomain.com;
-    
-    # SSL Configuration (will be updated by Certbot)
-    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-    
-    # Security headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    
-    # API Backend
-    location /api/ {
-        proxy_pass http://localhost:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-        
-        # Rate limiting
-        limit_req zone=api burst=20 nodelay;
-    }
-    
-    # Frontend (Next.js)
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-    
-    # Static files caching
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
-
-# Rate limiting configuration
-http {
-    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
-}
-```
-
-### 5.3 Enable Site and Get SSL Certificate
+### Step 7: Build and Start Services
 
 ```bash
-# Enable site
-sudo ln -s /etc/nginx/sites-available/smartschedule /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+cd /opt/SmartSchedule
 
-# Get SSL certificate
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+# Build images
+docker compose -f docker-compose.prod.yml build
 
-# Test SSL renewal
-sudo certbot renew --dry-run
-```
-
-## Step 6: Application Startup
-
-### 6.1 Start Backend with PM2
-
-```bash
-# Create PM2 ecosystem file
-nano ecosystem.config.js
-```
-
-**PM2 Configuration:**
-
-```javascript
-module.exports = {
-  apps: [
-    {
-      name: 'smartschedule-backend',
-      script: './backend/dist/server.js',
-      cwd: '/home/deploy/smartschedule',
-      instances: 2,
-      exec_mode: 'cluster',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 3001
-      },
-      error_file: './logs/backend-error.log',
-      out_file: './logs/backend-out.log',
-      log_file: './logs/backend-combined.log',
-      time: true
-    },
-    {
-      name: 'smartschedule-frontend',
-      script: 'npm',
-      args: 'start',
-      cwd: '/home/deploy/smartschedule/smart-schedule',
-      instances: 1,
-      env: {
-        NODE_ENV: 'production',
-        PORT: 3000
-      },
-      error_file: './logs/frontend-error.log',
-      out_file: './logs/frontend-out.log',
-      log_file: './logs/frontend-combined.log',
-      time: true
-    }
-  ]
-};
-```
-
-### 6.2 Start Applications
-
-```bash
-# Start applications
-pm2 start ecosystem.config.js
-
-# Save PM2 configuration
-pm2 save
-pm2 startup
+# Start services
+docker compose -f docker-compose.prod.yml up -d
 
 # Check status
-pm2 status
-pm2 logs
+docker compose -f docker-compose.prod.yml ps
+
+# View logs
+docker compose -f docker-compose.prod.yml logs -f
 ```
 
-## Step 7: Monitoring and Maintenance
-
-### 7.1 Setup Log Rotation
+### Step 8: Run Database Migrations
 
 ```bash
-# Configure logrotate
-sudo nano /etc/logrotate.d/smartschedule
+# Run migrations
+docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
+
+# (Optional) Seed initial data
+docker compose -f docker-compose.prod.yml exec backend npm run db:seed
 ```
 
-**Logrotate Configuration:**
+### Step 9: Verify Deployment
 
-```
-/home/deploy/smartschedule/logs/*.log {
-    daily
-    missingok
-    rotate 30
-    compress
-    delaycompress
-    notifempty
-    create 644 deploy deploy
-    postrotate
-        pm2 reloadLogs
-    endscript
-}
-```
+1. Visit `https://smartschedule24.com`
+2. Check API health: `https://smartschedule24.com/api/health`
+3. Test login functionality
 
-### 7.2 Setup Monitoring
+---
+
+## Option 2: Platform as a Service
+
+Easier deployment with less server management.
+
+### Railway
+
+1. Sign up at [Railway](https://railway.app)
+2. Create new project → **Deploy from GitHub**
+3. Configure services:
+   - **Backend**: Point to `backend/` directory
+   - **Frontend**: Point to `smart-schedule/` directory
+   - **Database**: Add PostgreSQL service
+   - **Redis**: Add Redis service
+4. Set environment variables (from `.env.production.example`)
+5. Railway automatically handles:
+   - SSL certificates
+   - Domain configuration
+   - Scaling
+
+### Render
+
+1. Sign up at [Render](https://render.com)
+2. Create **Web Service** for backend
+3. Create **Web Service** for frontend
+4. Create **PostgreSQL** database
+5. Create **Redis** instance
+6. Configure environment variables
+7. Connect custom domain in Render dashboard
+
+**Note**: Render requires updating Nginx config or using their reverse proxy.
+
+---
+
+## DNS Configuration
+
+### GoDaddy DNS Settings
+
+1. **Log into GoDaddy**
+   - Go to [godaddy.com](https://www.godaddy.com)
+   - Click **My Products** → **Domains**
+   - Click `smartschedule24.com` → **DNS** or **Manage DNS**
+
+2. **Add/Update A Records**
+
+   For VPS deployment:
+   ```
+   Type: A
+   Name: @
+   Value: YOUR_SERVER_IP
+   TTL: 600 (10 minutes)
+   
+   Type: A
+   Name: www
+   Value: YOUR_SERVER_IP
+   TTL: 600
+   ```
+
+   For PaaS (if they provide IP):
+   ```
+   Type: A
+   Name: @
+   Value: PAAS_PROVIDED_IP
+   TTL: 600
+   ```
+
+   Or use CNAME for subdomain routing (PaaS often provides):
+   ```
+   Type: CNAME
+   Name: @
+   Value: YOUR_PAAS_HOSTNAME
+   TTL: 600
+   ```
+
+3. **Save Changes**
+   - Click **Save** or **Add Record**
+   - Wait 5-30 minutes for DNS propagation
+
+4. **Verify DNS Propagation**
+   ```bash
+   # Check from your computer
+   nslookup smartschedule24.com
+   dig smartschedule24.com
+   
+   # Or use online tools
+   # https://www.whatsmydns.net
+   ```
+
+---
+
+## SSL Certificate Setup
+
+### Automatic (Let's Encrypt with Certbot)
+
+For VPS deployments, use Certbot (recommended):
 
 ```bash
-# Install monitoring tools
-sudo apt install htop iotop nethogs -y
+# Install Certbot
+apt install certbot python3-certbot-nginx -y
 
-# Setup system monitoring
-sudo nano /etc/systemd/system/smartschedule-monitor.service
+# Obtain certificate
+certbot certonly --standalone \
+  -d smartschedule24.com \
+  -d www.smartschedule24.com \
+  --email your-email@example.com \
+  --agree-tos \
+  --non-interactive
+
+# Copy certificates
+cp /etc/letsencrypt/live/smartschedule24.com/fullchain.pem nginx/ssl/
+cp /etc/letsencrypt/live/smartschedule24.com/privkey.pem nginx/ssl/
 ```
 
-### 7.3 Database Backups
+### Manual Certificate Upload
+
+If you have certificates from another provider:
+
+1. Place certificates in `nginx/ssl/`:
+   - `fullchain.pem` (certificate chain)
+   - `privkey.pem` (private key)
+
+2. Update permissions:
+   ```bash
+   chmod 644 nginx/ssl/fullchain.pem
+   chmod 600 nginx/ssl/privkey.pem
+   ```
+
+3. Restart Nginx:
+   ```bash
+   docker compose -f docker-compose.prod.yml restart nginx
+   ```
+
+---
+
+## Production Deployment Steps
+
+### Quick Start Checklist
+
+- [ ] Choose hosting provider (VPS or PaaS)
+- [ ] Set up server/hosting account
+- [ ] Clone repository or upload code
+- [ ] Configure `.env.production` with secure values
+- [ ] Configure DNS records in GoDaddy
+- [ ] Obtain SSL certificate
+- [ ] Build and start Docker containers
+- [ ] Run database migrations
+- [ ] Verify deployment
+- [ ] Set up monitoring and backups
+
+### Detailed Commands
+
+```bash
+# 1. Navigate to project
+cd /opt/SmartSchedule
+
+# 2. Configure environment
+cp .env.production.example .env.production
+nano .env.production  # Edit with secure values
+
+# 3. Build images
+docker compose -f docker-compose.prod.yml build --no-cache
+
+# 4. Start services
+docker compose -f docker-compose.prod.yml up -d
+
+# 5. Check logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# 6. Run migrations
+docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
+
+# 7. Check service health
+curl https://smartschedule24.com/api/health
+```
+
+---
+
+## Monitoring & Maintenance
+
+### Health Checks
+
+```bash
+# Check all containers
+docker compose -f docker-compose.prod.yml ps
+
+# Check logs
+docker compose -f docker-compose.prod.yml logs --tail=100
+
+# Check backend health
+curl https://smartschedule24.com/api/health
+```
+
+### Backup Database
 
 ```bash
 # Create backup script
-nano /home/deploy/backup-db.sh
-```
-
-**Backup Script:**
-
-```bash
+cat > /opt/SmartSchedule/backup.sh << 'EOF'
 #!/bin/bash
-BACKUP_DIR="/home/deploy/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-DB_NAME="smartschedule"
-
+BACKUP_DIR="/opt/backups"
 mkdir -p $BACKUP_DIR
+DATE=$(date +%Y%m%d_%H%M%S)
 
-# Create database backup
-pg_dump -h localhost -U smartschedule_user $DB_NAME > $BACKUP_DIR/smartschedule_$DATE.sql
+docker compose -f /opt/SmartSchedule/docker-compose.prod.yml exec -T database \
+  pg_dump -U smartschedule smartschedule_prod | gzip > "$BACKUP_DIR/db_backup_$DATE.sql.gz"
 
-# Compress backup
-gzip $BACKUP_DIR/smartschedule_$DATE.sql
+# Keep only last 7 days
+find $BACKUP_DIR -name "db_backup_*.sql.gz" -mtime +7 -delete
+EOF
 
-# Remove backups older than 30 days
-find $BACKUP_DIR -name "smartschedule_*.sql.gz" -mtime +30 -delete
+chmod +x /opt/SmartSchedule/backup.sh
 
-echo "Backup completed: smartschedule_$DATE.sql.gz"
+# Add to crontab (daily at 2 AM)
+(crontab -l 2>/dev/null; echo "0 2 * * * /opt/SmartSchedule/backup.sh") | crontab -
 ```
+
+### Update Application
 
 ```bash
-# Make executable and setup cron
-chmod +x /home/deploy/backup-db.sh
-crontab -e
+cd /opt/SmartSchedule
 
-# Add daily backup at 2 AM
-0 2 * * * /home/deploy/backup-db.sh
+# Pull latest code
+git pull
+
+# Rebuild and restart
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
+
+# Run migrations if needed
+docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
 ```
 
-## Step 8: Security Hardening
-
-### 8.1 Additional Security Measures
+### Monitor Resources
 
 ```bash
-# Install additional security tools
-sudo apt install ufw fail2ban rkhunter chkrootkit -y
+# Check disk usage
+df -h
 
-# Configure fail2ban for application
-sudo nano /etc/fail2ban/jail.local
+# Check memory usage
+free -h
+
+# Check Docker resources
+docker stats
+
+# View container logs
+docker compose -f docker-compose.prod.yml logs -f backend
 ```
 
-**Fail2ban Configuration:**
-
-```ini
-[DEFAULT]
-bantime = 3600
-findtime = 600
-maxretry = 5
-
-[nginx-http-auth]
-enabled = true
-filter = nginx-http-auth
-logpath = /var/log/nginx/error.log
-maxretry = 3
-
-[nginx-limit-req]
-enabled = true
-filter = nginx-limit-req
-logpath = /var/log/nginx/error.log
-maxretry = 10
-```
-
-### 8.2 Regular Security Updates
-
-```bash
-# Setup automatic security updates
-sudo apt install unattended-upgrades -y
-sudo dpkg-reconfigure -plow unattended-upgrades
-
-# Configure automatic updates
-sudo nano /etc/apt/apt.conf.d/50unattended-upgrades
-```
-
-## Step 9: Health Checks and Monitoring
-
-### 9.1 Health Check Endpoints
-
-The application includes health check endpoints:
-- `GET /api/health` - Basic health check
-- `GET /api/health/db` - Database connectivity check
-
-### 9.2 Monitoring Setup
-
-```bash
-# Install monitoring tools
-sudo apt install prometheus-node-exporter -y
-
-# Setup application monitoring
-pm2 install pm2-logrotate
-pm2 set pm2-logrotate:max_size 10M
-pm2 set pm2-logrotate:retain 30
-```
-
-## Step 10: Rollback Procedure
-
-### 10.1 Application Rollback
-
-```bash
-# Stop applications
-pm2 stop all
-
-# Rollback to previous version
-cd /home/deploy/smartschedule
-git checkout previous-tag
-npm install
-npm run build
-
-# Restart applications
-pm2 start ecosystem.config.js
-```
-
-### 10.2 Database Rollback
-
-```bash
-# Restore from backup
-pg_restore -h localhost -U smartschedule_user -d smartschedule /path/to/backup.sql
-```
-
-### 10.3 Nginx Rollback
-
-```bash
-# Revert Nginx configuration
-sudo cp /etc/nginx/sites-available/smartschedule.backup /etc/nginx/sites-available/smartschedule
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-## Verification Checklist
-
-- [ ] SSL certificate installed and working
-- [ ] HTTPS redirects working
-- [ ] Security headers present
-- [ ] Rate limiting active
-- [ ] Database connections secure
-- [ ] Logs being generated
-- [ ] Backups scheduled
-- [ ] Monitoring active
-- [ ] Firewall configured
-- [ ] Fail2ban active
+---
 
 ## Troubleshooting
 
-### Common Issues
+### Domain Not Resolving
 
-1. **SSL Certificate Issues**
-   ```bash
-   sudo certbot certificates
-   sudo certbot renew --force-renewal
-   ```
+```bash
+# Check DNS propagation
+dig smartschedule24.com
+nslookup smartschedule24.com
 
-2. **Application Not Starting**
-   ```bash
-   pm2 logs
-   pm2 restart all
-   ```
+# Verify DNS records in GoDaddy are correct
+# Wait up to 48 hours for full propagation
+```
 
-3. **Database Connection Issues**
-   ```bash
-   sudo systemctl status postgresql
-   sudo -u postgres psql -c "SELECT 1;"
-   ```
+### SSL Certificate Issues
 
-4. **Nginx Configuration Issues**
-   ```bash
-   sudo nginx -t
-   sudo systemctl reload nginx
-   ```
+```bash
+# Test certificate
+openssl s_client -connect smartschedule24.com:443 -servername smartschedule24.com
 
-## Support
+# Renew certificate
+certbot renew
 
-For deployment issues:
-1. Check application logs: `pm2 logs`
-2. Check system logs: `sudo journalctl -u nginx`
-3. Verify SSL: `curl -I https://yourdomain.com`
-4. Test database: `sudo -u postgres psql -c "SELECT 1;"`
+# Check Nginx SSL config
+docker compose -f docker-compose.prod.yml exec nginx nginx -t
+```
 
-## Security Notes
+### Database Connection Errors
 
-- Change all default passwords
-- Use strong, unique passwords
-- Enable 2FA where possible
-- Regular security updates
-- Monitor logs for suspicious activity
-- Keep backups encrypted and offsite
+```bash
+# Check database logs
+docker compose -f docker-compose.prod.yml logs database
+
+# Test database connection
+docker compose -f docker-compose.prod.yml exec database psql -U smartschedule -d smartschedule_prod
+
+# Verify DATABASE_URL in .env.production
+```
+
+### Application Not Starting
+
+```bash
+# Check all logs
+docker compose -f docker-compose.prod.yml logs
+
+# Check specific service
+docker compose -f docker-compose.prod.yml logs backend
+docker compose -f docker-compose.prod.yml logs frontend
+
+# Verify environment variables
+docker compose -f docker-compose.prod.yml exec backend env | grep DATABASE_URL
+```
+
+### Port Conflicts
+
+```bash
+# Check what's using ports
+netstat -tulpn | grep :80
+netstat -tulpn | grep :443
+
+# Stop conflicting services or change ports in docker-compose.prod.yml
+```
+
+---
+
+## Security Checklist
+
+- [ ] Changed all default passwords
+- [ ] Generated strong JWT_SECRET (32+ characters)
+- [ ] Generated strong database password
+- [ ] Enabled HTTPS/SSL
+- [ ] Configured firewall (only ports 80, 443 open)
+- [ ] Set up regular backups
+- [ ] Enabled automatic security updates
+- [ ] Restricted database access (only from backend container)
+- [ ] Configured rate limiting
+- [ ] Set proper file permissions
+
+---
+
+## Support & Resources
+
+- **Docker Docs**: https://docs.docker.com
+- **Let's Encrypt**: https://letsencrypt.org
+- **Nginx Docs**: https://nginx.org/en/docs
+- **GoDaddy DNS Help**: https://www.godaddy.com/help
+
+---
+
+## Next Steps
+
+After deployment:
+
+1. **Set up monitoring** (UptimeRobot, Pingdom)
+2. **Configure backups** (automated daily)
+3. **Set up alerts** (email/SMS for downtime)
+4. **Performance optimization** (CDN, caching)
+5. **Security hardening** (firewall, fail2ban)
+
+---
+
+**Questions?** Check logs, verify DNS, and ensure all environment variables are set correctly.
+

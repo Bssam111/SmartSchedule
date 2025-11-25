@@ -28,8 +28,25 @@ model User {
   feedback     Feedback[]
   notifications Notification[]
   roles        Role[]
+  authenticators Authenticator[]
 
   @@map("users")
+}
+
+model Authenticator {
+  id              String   @id @default(cuid())
+  credentialID    String   @unique
+  userId          String
+  publicKey       String
+  counter         Int      @default(0)
+  deviceName      String?
+  createdAt       DateTime @default(now())
+  lastUsed        DateTime @default(now())
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("authenticators")
 }
 
 model Role {
@@ -127,8 +144,26 @@ model Schedule {
 
   // Relations
   statusRef ScheduleStatus @relation(fields: [status], references: [name])
+  versions  ScheduleVersion[]
 
   @@map("schedules")
+}
+
+model ScheduleVersion {
+  id          String   @id @default(cuid())
+  scheduleId  String
+  version     Int
+  name        String
+  description String?
+  changes     Json     // Store change details
+  createdBy   String?   // User ID who made the change
+  createdAt   DateTime @default(now())
+
+  // Relations
+  schedule    Schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, version])
+  @@map("schedule_versions")
 }
 
 model ScheduleStatus {

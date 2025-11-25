@@ -1,13 +1,12 @@
 import { Request, Response, NextFunction } from 'express'
-import jwt from 'jsonwebtoken'
-import { prisma } from '@/config/database'
+import { verifyToken } from '@/utils/jwt'
 import { CustomError } from './errorHandler'
 
 export interface AuthRequest extends Request {
+  userId?: string
   user?: {
     id: string
     email: string
-    name: string
     role: string
   }
 }
@@ -18,63 +17,71 @@ export const authenticateToken = async (
   next: NextFunction
 ) => {
   try {
-    const token = req.cookies?.accessToken || req.headers.authorization?.replace('Bearer ', '')
+    const token = req.headers.authorization?.replace('Bearer ', '') || 
+                  req.cookies?.accessToken
 
     if (!token) {
-      throw new CustomError('Access token required', 401)
+      throw new CustomError('Authentication required', 401)
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
-
-    // Verify user still exists and is active
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true
-      }
-    })
-
-    if (!user) {
-      throw new CustomError('User not found', 401)
-    }
-
-    req.user = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role
-    }
-
+    const decoded = verifyToken(token)
+    req.userId = decoded.userId
+    req.user = decoded as any
+    
     next()
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      return next(new CustomError('Invalid token', 401))
+    if (error instanceof CustomError) {
+      return next(error)
     }
-    if (error instanceof jwt.TokenExpiredError) {
-      return next(new CustomError('Token expired', 401))
-    }
-    next(error)
+    next(new CustomError(401, 'Invalid or expired token'))
   }
 }
 
-export const requireRole = (roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return next(new CustomError('Authentication required', 401))
-    }
-
-    if (!roles.includes(req.user.role)) {
-      return next(new CustomError('Insufficient permissions', 403))
-    }
-
-    next()
+export const requireFaculty = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user) {
+    return next(new CustomError(401, 'Authentication required'))
   }
+  
+  if (req.user.role !== 'FACULTY' && req.user.role !== 'COMMITTEE') {
+    return next(new CustomError(403, 'Faculty access required'))
+  }
+  
+  next()
 }
 
-export const requireStudent = requireRole(['STUDENT'])
-export const requireFaculty = requireRole(['FACULTY'])
-export const requireCommittee = requireRole(['COMMITTEE'])
-export const requireFacultyOrCommittee = requireRole(['FACULTY', 'COMMITTEE'])
+export const requireFacultyOrCommittee = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user) {
+    return next(new CustomError(401, 'Authentication required'))
+  }
+  
+  if (req.user.role !== 'FACULTY' && req.user.role !== 'COMMITTEE') {
+    return next(new CustomError(403, 'Faculty or Committee access required'))
+  }
+  
+  next()
+}
+
+export const requireCommittee = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user) {
+    return next(new CustomError(401, 'Authentication required'))
+  }
+  
+  if (req.user.role !== 'COMMITTEE') {
+    return next(new CustomError(403, 'Committee access required'))
+  }
+  
+  next()
+}
+

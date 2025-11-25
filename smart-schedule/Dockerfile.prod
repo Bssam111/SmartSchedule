@@ -1,0 +1,87 @@
+# ============================================
+# Frontend Dockerfile - Production
+# Optimized for production deployment
+# ============================================
+
+# ===== Stage 1: Dependencies =====
+FROM node:20-alpine AS deps
+LABEL maintainer="SmartSchedule Team"
+
+# Install system dependencies
+RUN apk add --no-cache libc6-compat openssl
+
+WORKDIR /app
+
+# Copy dependency manifests
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Install dependencies
+RUN npm ci && \
+    npm cache clean --force
+
+# Generate Prisma Client if needed
+RUN if [ -f "prisma/schema.prisma" ]; then npx prisma generate || true; fi
+
+# ===== Stage 2: Builder =====
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/prisma ./prisma
+
+# Copy source code
+COPY . .
+
+# Set build-time environment variables
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_EXTERNAL_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_EXTERNAL_API_URL=${NEXT_PUBLIC_EXTERNAL_API_URL}
+
+# Build Next.js app for production
+RUN npm run build
+
+# ===== Stage 3: Production Runner =====
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apk add --no-cache openssl curl tzdata && \
+    cp /usr/share/zoneinfo/UTC /etc/localtime && \
+    echo "UTC" > /etc/timezone
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy necessary files
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/next.config.ts ./
+
+# Set ownership
+RUN chown -R nextjs:nodejs /app
+
+# Switch to non-root user
+USER nextjs
+
+# Expose Next.js port
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+ENV NODE_ENV=production
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3000 || exit 1
+
+# Start Next.js server
+CMD ["npm", "start"]
+

@@ -1,59 +1,101 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { AppHeader } from '../../../components/AppHeader'
+import api from '../../../lib/api'
+
+interface FeedbackItem {
+  id: string
+  from: string
+  name: string
+  message: string
+  status: string
+  time: string
+  priority: string
+  rating?: number
+  createdAt: string
+  userId: string
+}
 
 export default function CommitteeFeedback() {
-  const [feedback, setFeedback] = useState([
-    { 
-      id: 1, 
-      from: 'Student', 
-      name: 'John Doe', 
-      message: 'CS301 time conflict with MATH201 - both scheduled at 10:00 AM', 
-      status: 'Pending', 
-      time: '1 hour ago',
-      priority: 'High'
-    },
-    { 
-      id: 2, 
-      from: 'Faculty', 
-      name: 'Dr. Smith', 
-      message: 'Room capacity insufficient for CS101 - need larger room for 35 students', 
-      status: 'Resolved', 
-      time: '2 days ago',
-      priority: 'Medium'
-    },
-    { 
-      id: 3, 
-      from: 'Student', 
-      name: 'Jane Wilson', 
-      message: 'Prefer morning classes for electives', 
-      status: 'Pending', 
-      time: '3 hours ago',
-      priority: 'Low'
-    },
-    { 
-      id: 4, 
-      from: 'Faculty', 
-      name: 'Dr. Johnson', 
-      message: 'Teaching load too heavy - need to reduce sections', 
-      status: 'In Review', 
-      time: '1 day ago',
-      priority: 'High'
-    }
-  ])
-
+  const [feedback, setFeedback] = useState<FeedbackItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState('All')
-  const [selectedFeedback, setSelectedFeedback] = useState<any>(null)
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null)
+
+  useEffect(() => {
+    fetchFeedback()
+  }, [])
+
+  const fetchFeedback = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await api.getFeedback()
+      
+      if (response.success && response.data?.data) {
+        // Map API response to UI format
+        const mappedFeedback: FeedbackItem[] = response.data.data.map((item: any) => ({
+          id: item.id,
+          from: item.user?.role || 'Unknown',
+          name: item.user?.name || 'Unknown',
+          message: item.content,
+          status: 'Pending', // Status is not in the model, defaulting to Pending
+          time: formatTimeAgo(item.createdAt),
+          priority: getPriorityFromRating(item.rating),
+          rating: item.rating,
+          createdAt: item.createdAt,
+          userId: item.userId,
+        }))
+        setFeedback(mappedFeedback)
+      } else {
+        setError('Failed to load feedback')
+      }
+    } catch (err) {
+      console.error('Error fetching feedback:', err)
+      setError('Failed to load feedback. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatTimeAgo = (dateString: string): string => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`
+    return date.toLocaleDateString()
+  }
+
+  const getPriorityFromRating = (rating?: number): string => {
+    if (!rating) return 'Medium'
+    if (rating >= 4) return 'High'
+    if (rating >= 2) return 'Medium'
+    return 'Low'
+  }
 
   const filteredFeedback = feedback.filter(item => 
     filter === 'All' || item.status.toLowerCase() === filter.toLowerCase()
   )
 
-  const updateStatus = (id: number, newStatus: string) => {
+  const updateStatus = async (id: string, newStatus: string) => {
+    // Update local state immediately for better UX
     setFeedback(prev => prev.map(item => 
       item.id === id ? { ...item, status: newStatus } : item
     ))
+    
+    if (selectedFeedback?.id === id) {
+      setSelectedFeedback(prev => prev ? { ...prev, status: newStatus } : null)
+    }
+
+    // Note: Status update would require updating the feedback model to include a status field
+    // For now, we're only updating the UI state
+    // TODO: Add status field to Feedback model or use a different approach
   }
 
   const getPriorityColor = (priority: string) => {
@@ -89,10 +131,44 @@ export default function CommitteeFeedback() {
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900">Feedback Items</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  {filteredFeedback.length} items • {feedback.filter(f => f.status === 'Pending').length} pending
+                  {loading ? 'Loading...' : `${filteredFeedback.length} items • ${feedback.filter(f => f.status === 'Pending').length} pending`}
                 </p>
               </div>
               
+              {error && (
+                <div className="p-6">
+                  <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+                    {error}
+                    <button 
+                      onClick={fetchFeedback}
+                      className="ml-4 text-red-600 underline hover:text-red-800"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {loading && !error && (
+                <div className="p-12 text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="mt-4 text-sm text-gray-600">Loading feedback...</p>
+                </div>
+              )}
+
+              {!loading && !error && filteredFeedback.length === 0 && (
+                <div className="p-12 text-center">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No feedback found</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {filter === 'All' ? 'No feedback has been submitted yet.' : `No ${filter.toLowerCase()} feedback found.`}
+                  </p>
+                </div>
+              )}
+              
+              {!loading && !error && (
               <div className="divide-y divide-gray-200">
                 {filteredFeedback.map(item => (
                   <div
@@ -123,6 +199,7 @@ export default function CommitteeFeedback() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           </div>
 

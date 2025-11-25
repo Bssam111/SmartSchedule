@@ -5,9 +5,20 @@ declare global {
   var __prisma: PrismaClient | undefined
 }
 
+// Validate DATABASE_URL exists
+if (!process.env['DATABASE_URL']) {
+  console.warn('⚠️  WARNING: DATABASE_URL environment variable is not set!')
+  console.warn('⚠️  Database operations will fail. Please create a .env file with DATABASE_URL.')
+}
+
 // Prevent multiple instances of Prisma Client in development
 export const prisma = globalThis.__prisma || new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  datasources: {
+    db: {
+      url: process.env['DATABASE_URL']
+    }
+  }
 })
 
 if (process.env.NODE_ENV !== 'production') {
@@ -16,6 +27,14 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Database health check
 export async function checkDatabaseConnection() {
+  if (!process.env['DATABASE_URL']) {
+    return { 
+      success: false, 
+      message: 'DATABASE_URL environment variable is not set',
+      timestamp: new Date().toISOString()
+    }
+  }
+
   try {
     await prisma.$connect()
     await prisma.$disconnect()

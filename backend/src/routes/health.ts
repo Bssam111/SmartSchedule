@@ -1,53 +1,28 @@
 import { Router } from 'express'
-import { checkDatabaseConnection } from '@/config/database'
+import { prisma } from '@/config/database'
 
 const router = Router()
 
-// GET /api/health
 router.get('/', async (req, res) => {
   try {
-    const dbStatus = await checkDatabaseConnection()
+    // Check database connection
+    await prisma.$queryRaw`SELECT 1`
     
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      services: {
-        database: dbStatus,
-        api: 'healthy'
-      }
+      database: 'connected',
+      service: 'SmartSchedule API'
     })
   } catch (error) {
-    res.status(500).json({
+    res.status(503).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
+      database: 'disconnected',
       error: error instanceof Error ? error.message : 'Unknown error'
     })
   }
 })
 
-// GET /api/health/db
-router.get('/db', async (req, res) => {
-  try {
-    const dbStatus = await checkDatabaseConnection()
-    
-    if (dbStatus.success) {
-      res.json({
-        success: true,
-        ...dbStatus
-      })
-    } else {
-      res.status(500).json({
-        success: false,
-        ...dbStatus
-      })
-    }
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Database health check failed',
-      timestamp: new Date().toISOString()
-    })
-  }
-})
-
 export { router as healthRoutes }
+

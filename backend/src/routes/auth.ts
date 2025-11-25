@@ -18,6 +18,11 @@ const router = Router()
 // POST /api/auth/register
 router.post('/register', async (req, res, next) => {
   try {
+    // Normalize universityId - convert empty string to undefined
+    if (req.body.universityId === '') {
+      req.body.universityId = undefined
+    }
+    
     const { email, password, name, role, universityId } = registerSchema.parse(req.body)
 
     // Check if user already exists

@@ -1,0 +1,147 @@
+# ============================================
+# Docker Compose - Production Environment
+# Optimized for production deployment
+# ============================================
+
+services:
+  # ===== PostgreSQL Database =====
+  database:
+    image: postgres:16-alpine
+    container_name: smartschedule-db-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smartschedule}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-smartschedule_prod}
+    ports:
+      - "127.0.0.1:5432:5432"  # Only accessible from localhost
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - smartschedule-prod-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartschedule}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===== Backend API Service (Production) =====
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: smartschedule-backend-prod
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-smartschedule}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-smartschedule_prod}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      PORT: 3001
+      NODE_ENV: production
+      FRONTEND_URL: ${FRONTEND_URL:-https://smartschedule24.com}
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 1000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # WebAuthn configuration
+      RP_ID: ${RP_ID:-smartschedule24.com}
+      RP_ORIGIN: ${RP_ORIGIN:-https://smartschedule24.com}
+    ports:
+      - "127.0.0.1:3001:3001"  # Only accessible from nginx
+    networks:
+      - smartschedule-prod-network
+    volumes:
+      # Mount logs directory for persistence
+      - backend_logs:/app/logs
+    command: >
+      sh -c "
+        echo 'Running database migrations...' &&
+        npx prisma migrate deploy &&
+        echo 'Starting backend in production mode...' &&
+        npm start
+      "
+
+  # ===== Frontend Next.js Service (Production) =====
+  frontend:
+    build:
+      context: ./smart-schedule
+      dockerfile: Dockerfile.prod
+    container_name: smartschedule-frontend-prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - database
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-smartschedule}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-smartschedule_prod}?schema=public
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://smartschedule24.com/api}
+      NEXT_PUBLIC_EXTERNAL_API_URL: ${NEXT_PUBLIC_EXTERNAL_API_URL:-https://smartschedule24.com}
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "127.0.0.1:3000:3000"  # Only accessible from nginx
+    networks:
+      - smartschedule-prod-network
+
+  # ===== Redis Cache (for rate limiting & sessions) =====
+  redis:
+    image: redis:7-alpine
+    container_name: smartschedule-redis-prod
+    restart: unless-stopped
+    command: >
+      sh -c "if [ -n \"$$REDIS_PASSWORD\" ]; then 
+        redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\";
+      else 
+        redis-server --appendonly yes;
+      fi"
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - smartschedule-prod-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  # ===== Nginx Reverse Proxy =====
+  nginx:
+    image: nginx:alpine
+    container_name: smartschedule-nginx-prod
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - smartschedule-prod-network
+
+networks:
+  smartschedule-prod-network:
+    driver: bridge
+    name: smartschedule-prod-network
+
+volumes:
+  postgres_prod_data:
+    name: smartschedule-postgres-prod-data
+  redis_prod_data:
+    name: smartschedule-redis-prod-data
+  backend_logs:
+    name: smartschedule-backend-logs
+  nginx_logs:
+    name: smartschedule-nginx-logs
+

@@ -14,32 +14,70 @@ export const registerSchema = z.object({
   email: z.string()
     .email('Invalid email address')
     .transform((email) => {
-      const { isValid, normalized, errors } = validateAndNormalizeEmail(email)
-      if (!isValid) {
-        throw new z.ZodError([{ code: 'custom', message: errors.join(', '), path: ['email'] }])
-      }
-      return normalized
+      // Normalize email (lowercase)
+      return email.toLowerCase().trim()
     }),
+  role: z.enum(['STUDENT', 'FACULTY', 'COMMITTEE']),
   password: z.string()
-    .min(12, 'Password must be at least 12 characters')
+    .min(8, 'Password must be at least 8 characters')
     .max(128, 'Password too long')
     .refine((password) => {
-      const { isValid, errors } = validatePasswordStrength(password)
-      if (!isValid) {
-        throw new z.ZodError([{ code: 'custom', message: errors.join(', '), path: ['password'] }])
+      // Simplified password validation - just check minimum length
+      // The strict validation is optional for better UX
+      if (password.length < 8) {
+        return false
       }
       return true
+    }, {
+      message: 'Password must be at least 8 characters long'
     }),
   name: z.string()
     .min(2, 'Name must be at least 2 characters')
     .max(100, 'Name too long')
     .regex(/^[a-zA-Z\s\-'.]+$/, 'Name contains invalid characters'),
-  role: z.enum(['STUDENT', 'FACULTY', 'COMMITTEE']),
-  universityId: z.string()
-    .min(1, 'University ID is required')
-    .max(50, 'University ID too long')
-    .regex(/^[a-zA-Z0-9\-_]+$/, 'University ID contains invalid characters')
-    .optional()
+  universityId: z.union([
+    z.string().max(50, 'University ID too long').regex(/^[a-zA-Z0-9\-_]+$/, 'University ID contains invalid characters'),
+    z.string().length(0),
+    z.undefined()
+  ]).optional()
+}).refine((data) => {
+  // Validate email format based on role
+  if (data.role === 'STUDENT') {
+    // Student format: (ID)@student.ksu.edu.sa
+    const studentPattern = /^[a-zA-Z0-9]+@student\.ksu\.edu\.sa$/
+    if (!studentPattern.test(data.email)) {
+      throw new z.ZodError([{
+        code: 'custom',
+        message: 'Student email must be in format: (ID)@student.ksu.edu.sa (e.g., 1234567@student.ksu.edu.sa)',
+        path: ['email']
+      }])
+    }
+  } else if (data.role === 'FACULTY') {
+    // Faculty format: (ID)@faculty.ksu.edu.sa or (name)@ksu.edu.sa
+    const facultyPattern1 = /^[a-zA-Z0-9]+@faculty\.ksu\.edu\.sa$/
+    const facultyPattern2 = /^[a-zA-Z0-9._-]+@ksu\.edu\.sa$/
+    if (!facultyPattern1.test(data.email) && !facultyPattern2.test(data.email)) {
+      throw new z.ZodError([{
+        code: 'custom',
+        message: 'Faculty email must be in format: (ID)@faculty.ksu.edu.sa or (name)@ksu.edu.sa',
+        path: ['email']
+      }])
+    }
+  } else if (data.role === 'COMMITTEE') {
+    // Committee format: (ID)@ksu.edu.sa or (name)@ksu.edu.sa
+    const committeePattern = /^[a-zA-Z0-9._-]+@ksu\.edu\.sa$/
+    if (!committeePattern.test(data.email)) {
+      throw new z.ZodError([{
+        code: 'custom',
+        message: 'Committee email must be in format: (ID or name)@ksu.edu.sa',
+        path: ['email']
+      }])
+    }
+  }
+  return true
+}, {
+  message: 'Email format does not match the selected role',
+  path: ['email']
 })
 
 // Enhanced course validation schemas

@@ -1,5 +1,10 @@
 import jwt from 'jsonwebtoken'
 import { Response } from 'express'
+import { CustomError } from '@/middleware/errorHandler'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-not-for-production'
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
+const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d'
 
 export interface TokenPayload {
   userId: string
@@ -8,59 +13,50 @@ export interface TokenPayload {
 }
 
 export const generateTokens = (payload: TokenPayload) => {
-  const accessToken = jwt.sign(
-    payload,
-    process.env.JWT_SECRET!,
-    { 
-      expiresIn: process.env.JWT_EXPIRES_IN || '15m', // Short-lived access token
-      issuer: process.env.JWT_ISSUER || 'smartschedule-api',
-      audience: process.env.JWT_AUDIENCE || 'smartschedule-client'
-    }
-  )
+  const accessToken = jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN
+  })
 
   const refreshToken = jwt.sign(
-    { 
-      userId: payload.userId,
-      type: 'refresh'
-    },
-    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET!,
-    { 
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d', // Shorter refresh token
-      issuer: process.env.JWT_ISSUER || 'smartschedule-api',
-      audience: process.env.JWT_AUDIENCE || 'smartschedule-client'
+    { userId: payload.userId },
+    JWT_SECRET,
+    {
+      expiresIn: JWT_REFRESH_EXPIRES_IN
     }
   )
 
   return { accessToken, refreshToken }
 }
 
+export const verifyToken = (token: string): TokenPayload => {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload
+    return decoded
+  } catch (error) {
+    throw new CustomError(401, 'Invalid or expired token')
+  }
+}
+
 export const setTokenCookies = (res: Response, accessToken: string, refreshToken: string) => {
   const isProduction = process.env.NODE_ENV === 'production'
   
-  // Set access token cookie (short-lived)
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 15 * 60 * 1000, // 15 minutes
-    path: '/'
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   })
 
-  // Set refresh token cookie (longer-lived but still secure)
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/'
+    sameSite: 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
   })
 }
 
 export const clearTokenCookies = (res: Response) => {
-  res.clearCookie('accessToken', { path: '/' })
-  res.clearCookie('refreshToken', { path: '/' })
+  res.clearCookie('accessToken')
+  res.clearCookie('refreshToken')
 }
 
-export const verifyToken = (token: string): TokenPayload => {
-  return jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload
-}

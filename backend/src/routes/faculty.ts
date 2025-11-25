@@ -8,33 +8,34 @@ const router = Router()
 // GET /api/faculty/assignments
 router.get('/assignments', authenticateToken, requireFaculty, async (req: AuthRequest, res, next) => {
   try {
-    const assignments = await prisma.assignment.findMany({
+    const sections = await prisma.section.findMany({
       where: {
-        section: {
-          instructorId: req.user!.id
-        }
+        instructorId: req.user!.id
       },
       include: {
-        student: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        section: {
+        course: true,
+        room: true,
+        meetings: true,
+        assignments: {
           include: {
-            course: true,
-            room: true,
-            meetings: true
+            student: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
           }
         }
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     })
 
     res.json({
       success: true,
-      data: assignments
+      data: sections
     })
   } catch (error) {
     next(error)
