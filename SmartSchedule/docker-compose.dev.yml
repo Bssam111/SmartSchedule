@@ -1,0 +1,112 @@
+# ============================================
+# Docker Compose - Development Environment
+# Hot-reload enabled for faster development
+# ============================================
+
+services:
+  # ===== PostgreSQL Database =====
+  database:
+    image: postgres:16-alpine
+    container_name: smartschedule-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smartschedule}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-smartschedule_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - smartschedule-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartschedule}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ===== Backend API Service (Development) =====
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: deps
+    container_name: smartschedule-backend-dev
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-smartschedule}:${POSTGRES_PASSWORD:-dev_password}@database:5432/${POSTGRES_DB:-smartschedule_dev}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-not-for-production}
+      JWT_EXPIRES_IN: 7d
+      JWT_REFRESH_EXPIRES_IN: 30d
+      PORT: 3001
+      NODE_ENV: development
+      FRONTEND_URL: http://localhost:3000
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 1000
+    ports:
+      - "3001:3001"
+    networks:
+      - smartschedule-dev-network
+    volumes:
+      # Hot-reload: mount source code
+      - ./backend/src:/app/src:ro
+      - ./backend/prisma:/app/prisma:ro
+      - ./backend/package.json:/app/package.json:ro
+      - ./backend/tsconfig.json:/app/tsconfig.json:ro
+      - /app/node_modules
+    command: >
+      sh -c "
+        echo 'Pushing database schema...' &&
+        npx prisma db push --accept-data-loss || echo 'Schema push completed or skipped' &&
+        echo 'Starting backend in development mode...' &&
+        npm run dev
+      "
+
+  # ===== Frontend Next.js Service (Development) =====
+  frontend-dev:
+    build:
+      context: ./smart-schedule
+      dockerfile: Dockerfile
+      target: deps
+    container_name: smartschedule-frontend-dev
+    restart: unless-stopped
+    depends_on:
+      - backend-dev
+      - database
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-smartschedule}:${POSTGRES_PASSWORD:-dev_password}@database:5432/${POSTGRES_DB:-smartschedule_dev}?schema=public
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      NEXT_PUBLIC_EXTERNAL_API_URL: http://localhost:3001
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    networks:
+      - smartschedule-dev-network
+    volumes:
+      # Hot-reload: mount source code
+      - ./smart-schedule/app:/app/app:ro
+      - ./smart-schedule/components:/app/components:ro
+      - ./smart-schedule/lib:/app/lib:ro
+      - ./smart-schedule/hooks:/app/hooks:ro
+      - ./smart-schedule/prisma:/app/prisma:ro
+      - ./smart-schedule/public:/app/public:ro
+      - ./smart-schedule/package.json:/app/package.json:ro
+      - ./smart-schedule/next.config.ts:/app/next.config.ts:ro
+      - ./smart-schedule/tsconfig.json:/app/tsconfig.json:ro
+      - ./smart-schedule/tailwind.config.ts:/app/tailwind.config.ts:ro
+      - ./smart-schedule/postcss.config.mjs:/app/postcss.config.mjs:ro
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+networks:
+  smartschedule-dev-network:
+    driver: bridge
+    name: smartschedule-dev-network
+
+volumes:
+  postgres_dev_data:
+    name: smartschedule-postgres-dev-data
