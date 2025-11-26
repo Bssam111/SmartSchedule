@@ -63,7 +63,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/next.config.ts ./
+# Note: next.config.ts is optional for Next.js 15 - removed since file doesn't exist
+# Next.js will use defaults if config file is not present
 
 # Set ownership
 RUN chown -R nextjs:nodejs /app
