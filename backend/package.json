@@ -61,7 +61,8 @@
     "y-protocols": "^1.0.6",
     "y-websocket": "^3.0.0",
     "yjs": "^13.6.27",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "tsconfig-paths": "^4.2.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -81,7 +82,6 @@
     "prettier": "^3.1.1",
     "prisma": "^5.22.0",
     "supertest": "^6.3.3",
-    "tsconfig-paths": "^4.2.0",
     "tsx": "^4.6.2",
     "typescript": "^5.3.3",
     "vitest": "^1.1.0"
