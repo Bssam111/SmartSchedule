@@ -358,7 +358,7 @@ export default function CommitteeSchedules() {
           showDialog({
             title: 'Error Creating Section',
             message: errorData.error || 'An error occurred while creating the section.',
-            type: 'error',
+            variant: 'danger',
             confirmText: 'Try Again'
           })
           // Also show toast as backup
