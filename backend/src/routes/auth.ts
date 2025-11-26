@@ -96,20 +96,32 @@ router.post('/login', async (req, res, next) => {
     
     const { email, password } = parsed
 
+    console.log('🔍 Looking for user with email:', email)
+
     // Find user
     const user = await prisma.user.findUnique({
       where: { email }
     })
 
     if (!user) {
+      console.log('❌ User not found:', email)
       throw new CustomError('Invalid credentials', 401)
     }
 
+    console.log('✅ User found:', user.email, 'Role:', user.role)
+    console.log('🔍 Verifying password...')
+    console.log('🔍 Password hash in DB:', user.password.substring(0, 30) + '...')
+
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password)
+    console.log('🔍 Password match:', isValidPassword)
+    
     if (!isValidPassword) {
+      console.log('❌ Password verification failed for:', email)
       throw new CustomError('Invalid credentials', 401)
     }
+
+    console.log('✅ Password verified successfully')
 
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens({
