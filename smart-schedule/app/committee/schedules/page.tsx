@@ -101,7 +101,9 @@ export default function CommitteeSchedules() {
     try {
       setLoading(true)
       
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      // Use the centralized API URL utility
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       
       // First, ensure time slots are generated
       try {
@@ -213,7 +215,9 @@ export default function CommitteeSchedules() {
       console.log('📝 Selected time slots:', newSection.selectedTimeSlots)
       console.log('📝 Built meetings:', meetings)
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      // Use the centralized API URL utility
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/sections`, {
         credentials: 'include',
         method: 'POST',
@@ -448,7 +452,9 @@ export default function CommitteeSchedules() {
 
     try {
       console.log('🗑️ Sending DELETE request to:', `/api/sections/${id}`)
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      // Use the centralized API URL utility
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/sections/${id}`, {
         credentials: 'include',
         method: 'DELETE',
@@ -486,7 +492,9 @@ export default function CommitteeSchedules() {
     try {
       setSelectedStudent(null)
       setSearchResults([])
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      // Use the centralized API URL utility
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/students/search?universityId=${enrollmentData.universityId}`, {
         credentials: 'include'
       })
@@ -540,7 +548,9 @@ export default function CommitteeSchedules() {
     }
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      // Use the centralized API URL utility
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/sections/${selectedSection.id}/enroll`, {
         credentials: 'include',
         method: 'POST',
@@ -581,7 +591,9 @@ export default function CommitteeSchedules() {
     
     if (confirmed) {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        // Use the centralized API URL utility
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
         const response = await fetch(`${API_BASE_URL}/sections/${sectionId}/unenroll?studentId=${studentId}`, {
           credentials: 'include',
           method: 'DELETE'

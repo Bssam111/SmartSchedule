@@ -48,11 +48,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const apiUrl = getApiBaseUrl()
+      let apiUrl = getApiBaseUrl()
+      
+      // Double-check and fix URL if corrupted (safety check)
+      if (apiUrl.includes('.opp') || apiUrl.includes('pr..pp') || !apiUrl.includes('handsome-radiance-production.up.railway.app')) {
+        console.warn('[Login] CORRUPTED URL DETECTED, fixing:', apiUrl)
+        apiUrl = 'https://handsome-radiance-production.up.railway.app/api'
+        console.log('[Login] Using corrected URL:', apiUrl)
+      }
+      
       const loginUrl = `${apiUrl}/auth/login`
       
       console.log('[Login] Attempting login to:', loginUrl)
       console.log('[Login] Email:', email)
+      console.log('[Login] API URL verified:', apiUrl)
       
       const response = await fetch(loginUrl, {
         method: 'POST',

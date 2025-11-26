@@ -42,7 +42,9 @@ export default function StudentSchedule() {
 
       try {
         setLoading(true)
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        // Use the centralized API URL utility
+        const { getApiBaseUrl } = await import('@/lib/api-utils')
+        const API_BASE_URL = getApiBaseUrl()
         const response = await fetch(`${API_BASE_URL}/students/me/schedule`, {
           credentials: 'include'
         })
