@@ -49,7 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       const apiUrl = getApiBaseUrl()
-      const response = await fetch(`${apiUrl}/auth/login`, {
+      const loginUrl = `${apiUrl}/auth/login`
+      
+      console.log('[Login] Attempting login to:', loginUrl)
+      console.log('[Login] Email:', email)
+      
+      const response = await fetch(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,11 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password }),
       })
 
+      console.log('[Login] Response status:', response.status)
+      console.log('[Login] Response URL:', response.url)
+
       // Check if response is JSON before parsing
       const contentType = response.headers.get('content-type')
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text()
-        console.error('Non-JSON response received:', text.substring(0, 200))
+        console.error('[Login] Non-JSON response received:', text.substring(0, 200))
         return { 
           success: false, 
           error: `Server returned ${response.status}. Check if backend is running and API URL is correct.` 
@@ -70,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await response.json()
+      console.log('[Login] Response data:', data)
 
       if (response.ok && data.success) {
         const userData = data.user || {
@@ -86,10 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return { success: true }
       } else {
-        return { success: false, error: data.error || 'Login failed' }
+        // Show the actual error message from backend
+        const errorMsg = data.error || data.message || 'Login failed'
+        console.error('[Login] Login failed:', errorMsg)
+        return { success: false, error: errorMsg }
       }
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('[Login] Login error:', error)
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'An unexpected error occurred' 
