@@ -76,16 +76,17 @@ RUN chown -R nextjs:nodejs /app
 # Switch to non-root user
 USER nextjs
 
-# Expose Next.js port
+# Expose Next.js port (Railway will set PORT automatically, but we expose 3000 as default)
 EXPOSE 3000
 
-ENV PORT=3000
+# Note: Railway sets PORT=8080 automatically, which Next.js will use
+# We don't set ENV PORT here to allow Railway to control it
 ENV HOSTNAME="0.0.0.0"
 ENV NODE_ENV=production
 
-# Health check
+# Health check (uses PORT env var, which Railway sets)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3000 || exit 1
+  CMD curl -f http://localhost:${PORT:-3000} || exit 1
 
 # Start Next.js server
 CMD ["npm", "start"]
