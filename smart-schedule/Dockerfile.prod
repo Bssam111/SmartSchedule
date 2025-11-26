@@ -35,6 +35,9 @@ COPY --from=deps /app/prisma ./prisma
 # Copy source code (from smart-schedule directory)
 COPY smart-schedule/ .
 
+# Ensure public directory exists (Next.js needs it)
+RUN mkdir -p ./public
+
 # Set build-time environment variables
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_EXTERNAL_API_URL
@@ -59,10 +62,11 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy necessary files
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
+# Copy public directory (it should exist from builder stage)
+COPY --from=builder /app/public ./public
 # Note: next.config.ts is optional for Next.js 15 - removed since file doesn't exist
 # Next.js will use defaults if config file is not present
 
