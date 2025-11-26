@@ -7,15 +7,55 @@
 1. **Sign up**: [railway.app](https://railway.app)
 2. **Create project** → Connect GitHub repo
 3. **Add services**:
-   - PostgreSQL database
-   - Redis cache
-   - Backend (from `backend/` folder)
-   - Frontend (from `smart-schedule/` folder)
-4. **Set environment variables** (copy from `env.production.template`)
-5. **Connect domain**: Railway dashboard → Custom Domain → `smartschedule24.com`
-6. **Update GoDaddy DNS**: Railway will give you instructions
+   - **PostgreSQL database**: Click "New" → "Database" → "PostgreSQL"
+   - **Redis cache**: Click "New" → "Database" → "Redis"
+   - **Backend service**: Click "New" → "GitHub Repo" → Select your repo
+   - **Frontend service**: Click "New" → "GitHub Repo" → Select your repo (again)
+
+4. **Configure Backend Service**:
+   - Click on the backend service
+   - Go to **Settings** tab
+   - Set **Root Directory** to: `backend`
+   - Set **Dockerfile Path** to: `Dockerfile.prod`
+   - Go to **Variables** tab and add all environment variables (see below)
+
+5. **Configure Frontend Service**:
+   - Click on the frontend service
+   - Go to **Settings** tab
+   - Set **Root Directory** to: `smart-schedule`
+   - Set **Dockerfile Path** to: `Dockerfile.prod`
+   - Go to **Variables** tab and add all environment variables (see below)
+
+6. **Set Environment Variables** (for both services):
+   - Copy variables from `env.production.template`
+   - **Backend needs**: `DATABASE_URL` (from PostgreSQL service), `REDIS_URL` (from Redis service), `JWT_SECRET`, `PORT=3001`, etc.
+   - **Frontend needs**: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_EXTERNAL_API_URL`, `DATABASE_URL` (for Prisma), etc.
+   - **Important**: Use Railway's service references for `DATABASE_URL` and `REDIS_URL` (Railway provides these automatically)
+
+7. **Connect domain**: 
+   - Click on Frontend service → **Settings** → **Networking**
+   - Click **Generate Domain** or **Add Custom Domain** → `smartschedule24.com`
+   - Railway will provide DNS instructions
+
+8. **Update GoDaddy DNS**: 
+   - Follow Railway's DNS instructions (usually CNAME records)
+   - Wait 5-30 minutes for DNS propagation
 
 **Cost**: ~$5-20/month | **Time**: 30 minutes
+
+### ⚠️ Troubleshooting Railway Deployment
+
+**Error: "Error creating build plan with Railway"**
+- ✅ **Solution**: Make sure you set the **Root Directory** correctly:
+  - Backend: `backend`
+  - Frontend: `smart-schedule`
+- ✅ **Solution**: Verify **Dockerfile Path** is set to `Dockerfile.prod`
+- ✅ **Solution**: The `railway.toml` files in each directory should help, but you still need to set Root Directory in Railway dashboard
+
+**Build fails during Docker build**
+- Check that `Dockerfile.prod` exists in `backend/` and `smart-schedule/` directories
+- Verify all required files are committed to GitHub
+- Check build logs in Railway dashboard for specific errors
 
 ---
 
