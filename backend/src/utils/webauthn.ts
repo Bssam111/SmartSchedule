@@ -250,7 +250,7 @@ export async function verifyRegistrationResponseFunction(
     verified: true,
     credentialID: bufferToBase64URLString(credentialIDBuffer),
     publicKey: bufferToBase64URLString(publicKeyBuffer),
-    counter: verification.registrationInfo.counter || 0,
+    counter: (verification.registrationInfo as any).counter || 0,
   }
 }
 
@@ -283,9 +283,9 @@ export async function generateAuthenticationOptions(
         throw new Error('Credential ID is required for each authenticator')
       }
       return {
-        id: base64URLStringToBuffer(authenticator.credentialID),
-        type: 'public-key',
-        transports: ['internal', 'usb', 'ble', 'nfc'],
+        id: authenticator.credentialID, // Keep as string, not buffer
+        type: 'public-key' as const,
+        transports: ['internal', 'usb', 'ble', 'nfc'] as const,
       }
     }),
     userVerification: 'preferred',
@@ -354,13 +354,13 @@ export async function verifyAuthenticationResponse(
       expectedChallenge,
       expectedOrigin,
       expectedRPID: rpID,
-      authenticator: {
-        credentialID: base64URLStringToBuffer(authenticator.credentialID),
-        credentialPublicKey: base64URLStringToBuffer(authenticator.publicKey),
+      expectedCredential: {
+        id: base64URLStringToBuffer(authenticator.credentialID),
+        publicKey: base64URLStringToBuffer(authenticator.publicKey),
         counter: authenticator.counter || 0,
       },
       requireUserVerification: true,
-    }
+    } as any
 
     const verification = await verifyAuthenticationResponseLib(opts)
 
