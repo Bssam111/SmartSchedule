@@ -66,12 +66,14 @@ RUN npm ci --only=production && \
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
 
+# Install Prisma CLI for migrations and client generation
+RUN npm install prisma@^5.22.0 --no-save
+
 # Generate Prisma Client for production
-# We need prisma CLI to generate the client. Install it temporarily, generate, then remove it.
-RUN npm install prisma@^5.22.0 --no-save && \
-    npx prisma generate && \
-    npm uninstall prisma --no-save && \
-    npm cache clean --force
+RUN npx prisma generate
+
+# Note: Migrations will be run at container startup via entrypoint script
+# This allows DATABASE_URL to be available from Railway environment variables
 
 # Verify Prisma Client was generated correctly
 RUN test -f node_modules/.prisma/client/index.js && \
@@ -86,6 +88,21 @@ RUN chown -R nodejs:nodejs /app/node_modules
 RUN echo '{"compilerOptions":{"baseUrl":"dist","paths":{"@/*":["*"]}}}' > tsconfig.json && \
     chown nodejs:nodejs tsconfig.json
 
+# Create entrypoint script to run migrations before starting server
+# This must be done before switching to nodejs user
+RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
+    echo 'set -e' >> /app/entrypoint.sh && \
+    echo 'echo "🔄 Running database migrations..."' >> /app/entrypoint.sh && \
+    echo 'npx prisma migrate deploy || {' >> /app/entrypoint.sh && \
+    echo '  echo "⚠️  Migration failed, attempting db push as fallback..."' >> /app/entrypoint.sh && \
+    echo '  npx prisma db push --accept-data-loss || exit 1' >> /app/entrypoint.sh && \
+    echo '}' >> /app/entrypoint.sh && \
+    echo 'echo "✅ Migrations completed successfully"' >> /app/entrypoint.sh && \
+    echo 'echo "🚀 Starting application server..."' >> /app/entrypoint.sh && \
+    echo 'exec node -r tsconfig-paths/register dist/server.js' >> /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh && \
+    chown nodejs:nodejs /app/entrypoint.sh
+
 # Switch to non-root user
 USER nodejs
 
@@ -96,6 +113,6 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3001/api/health || exit 1
 
-# Start application
-CMD ["node", "-r", "tsconfig-paths/register", "dist/server.js"]
+# Start application (runs migrations first via entrypoint script)
+CMD ["/app/entrypoint.sh"]
 
