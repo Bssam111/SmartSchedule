@@ -381,7 +381,7 @@ export default function CommitteeSchedules() {
         showDialog({
           title: 'Server Error',
           message: 'The server returned an invalid response. Please try again.',
-          type: 'error'
+          variant: 'danger'
         })
         error('Server returned invalid response. Please try again.')
         return
