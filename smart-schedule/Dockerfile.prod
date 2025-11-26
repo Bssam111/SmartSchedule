@@ -12,9 +12,9 @@ RUN apk add --no-cache libc6-compat openssl
 
 WORKDIR /app
 
-# Copy dependency manifests
-COPY package*.json ./
-COPY prisma ./prisma/
+# Copy dependency manifests (paths relative to repo root when using absolute Dockerfile path)
+COPY smart-schedule/package*.json ./
+COPY smart-schedule/prisma ./prisma/
 
 # Install dependencies
 RUN npm ci && \
@@ -32,8 +32,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/prisma ./prisma
 
-# Copy source code
-COPY . .
+# Copy source code (from smart-schedule directory)
+COPY smart-schedule/ .
 
 # Set build-time environment variables
 ARG NEXT_PUBLIC_API_URL
