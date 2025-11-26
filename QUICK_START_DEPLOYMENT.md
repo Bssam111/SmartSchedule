@@ -12,18 +12,20 @@
    - **Backend service**: Click "New" → "GitHub Repo" → Select your repo
    - **Frontend service**: Click "New" → "GitHub Repo" → Select your repo (again)
 
-4. **Configure Backend Service**:
+4. **Configure Backend Service** (⚠️ CRITICAL STEP):
    - Click on the backend service
    - Go to **Settings** tab
-   - Set **Root Directory** to: `backend`
-   - Set **Dockerfile Path** to: `Dockerfile.prod`
+   - **IMPORTANT**: Find **Root Directory** field and set it to: `backend` (no leading slash, just `backend`)
+   - Find **Dockerfile Path** field and set it to: `Dockerfile.prod`
+   - **Save** the settings (important!)
    - Go to **Variables** tab and add all environment variables (see below)
 
-5. **Configure Frontend Service**:
+5. **Configure Frontend Service** (⚠️ CRITICAL STEP):
    - Click on the frontend service
    - Go to **Settings** tab
-   - Set **Root Directory** to: `smart-schedule`
-   - Set **Dockerfile Path** to: `Dockerfile.prod`
+   - **IMPORTANT**: Find **Root Directory** field and set it to: `smart-schedule` (no leading slash, just `smart-schedule`)
+   - Find **Dockerfile Path** field and set it to: `Dockerfile.prod`
+   - **Save** the settings (important!)
    - Go to **Variables** tab and add all environment variables (see below)
 
 6. **Set Environment Variables** (for both services):
@@ -45,6 +47,16 @@
 
 ### ⚠️ Troubleshooting Railway Deployment
 
+**Error: "Dockerfile 'Dockerfile.prod' does not exist"**
+- ✅ **CRITICAL**: You MUST set the **Root Directory** in Railway dashboard for each service:
+  - Go to your service → **Settings** tab
+  - Find **Root Directory** field
+  - **Backend service**: Set to `backend` (without leading slash)
+  - **Frontend service**: Set to `smart-schedule` (without leading slash)
+  - Save settings and redeploy
+- ✅ **Solution**: Verify **Dockerfile Path** is set to `Dockerfile.prod` (relative to Root Directory)
+- ✅ **Solution**: The `railway.toml` files in each directory will be automatically detected once Root Directory is set
+
 **Error: "Error creating build plan with Railway"**
 - ✅ **Solution**: Make sure you set the **Root Directory** correctly:
   - Backend: `backend`
@@ -56,6 +68,7 @@
 - Check that `Dockerfile.prod` exists in `backend/` and `smart-schedule/` directories
 - Verify all required files are committed to GitHub
 - Check build logs in Railway dashboard for specific errors
+- Make sure Root Directory is set BEFORE deploying (this is the most common issue!)
 
 ---
 
