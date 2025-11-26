@@ -13,15 +13,19 @@ export interface TokenPayload {
 }
 
 export const generateTokens = (payload: TokenPayload) => {
-  const accessToken = jwt.sign(payload as object, JWT_SECRET as string, {
-    expiresIn: JWT_EXPIRES_IN as string | number
-  })
+  const accessToken = jwt.sign(
+    payload,
+    String(JWT_SECRET),
+    {
+      expiresIn: String(JWT_EXPIRES_IN)
+    }
+  )
 
   const refreshToken = jwt.sign(
-    { userId: payload.userId } as object,
-    JWT_SECRET as string,
+    { userId: payload.userId },
+    String(JWT_SECRET),
     {
-      expiresIn: JWT_REFRESH_EXPIRES_IN as string | number
+      expiresIn: String(JWT_REFRESH_EXPIRES_IN)
     }
   )
 

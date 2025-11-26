@@ -18,7 +18,7 @@ export const requireRole = (...allowedRoles: string[]) => {
 
 export const requireUserRead = (req: AuthRequest, res: Response, next: NextFunction) => {
   if (!req.user) {
-    return next(new CustomError(401, 'Authentication required'))
+    return next(new CustomError('Authentication required', 401))
   }
   
   // Allow all authenticated users to read user list (with filtered data)

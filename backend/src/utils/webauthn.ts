@@ -1,7 +1,7 @@
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse as verifyRegistrationResponseLib,
-  generateAuthenticationOptions,
+  generateAuthenticationOptions as generateAuthenticationOptionsLib,
   verifyAuthenticationResponse as verifyAuthenticationResponseLib,
 } from '@simplewebauthn/server'
 import type {
@@ -9,7 +9,6 @@ import type {
   VerifyRegistrationResponseOpts,
   GenerateAuthenticationOptionsOpts,
   VerifyAuthenticationResponseOpts,
-  AuthenticatorDevice,
 } from '@simplewebauthn/server'
 
 // Relying Party (RP) information
@@ -84,15 +83,15 @@ export async function generateRegistrationOptionsForUser(
   const opts: GenerateRegistrationOptionsOpts = {
     rpName,
     rpID,
-    userID: base64URLStringToBuffer(userId),
+    userID: new Uint8Array(base64URLStringToBuffer(userId)),
     userName: userEmail,
     userDisplayName: userName,
     timeout: 60000,
     attestationType: 'none',
     excludeCredentials: validAuthenticators.map(authenticator => ({
-      id: base64URLStringToBuffer(authenticator.credentialID),
-      type: 'public-key',
-      transports: ['internal', 'usb', 'ble', 'nfc'],
+      id: authenticator.credentialID, // Keep as string
+      type: 'public-key' as const,
+      transports: ['internal', 'usb', 'ble', 'nfc'] as const,
     })),
     authenticatorSelection: {
       userVerification: 'preferred',
@@ -293,7 +292,7 @@ export async function generateAuthenticationOptions(
     rpID,
   }
 
-  return await generateAuthenticationOptions(opts)
+  return await generateAuthenticationOptionsLib(opts)
 }
 
 /**
@@ -356,8 +355,8 @@ export async function verifyAuthenticationResponse(
       expectedOrigin,
       expectedRPID: rpID,
       expectedCredential: {
-        id: base64URLStringToBuffer(authenticator.credentialID),
-        publicKey: base64URLStringToBuffer(authenticator.publicKey),
+        id: new Uint8Array(base64URLStringToBuffer(authenticator.credentialID)),
+        publicKey: new Uint8Array(base64URLStringToBuffer(authenticator.publicKey)),
         counter: authenticator.counter || 0,
       },
       requireUserVerification: true,

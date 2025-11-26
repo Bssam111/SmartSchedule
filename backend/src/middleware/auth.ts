@@ -43,11 +43,11 @@ export const requireFaculty = (
   next: NextFunction
 ) => {
   if (!req.user) {
-    return next(new CustomError(401, 'Authentication required'))
+    return next(new CustomError('Authentication required', 401))
   }
   
   if (req.user.role !== 'FACULTY' && req.user.role !== 'COMMITTEE') {
-    return next(new CustomError(403, 'Faculty access required'))
+    return next(new CustomError('Faculty access required', 403))
   }
   
   next()
@@ -59,11 +59,11 @@ export const requireFacultyOrCommittee = (
   next: NextFunction
 ) => {
   if (!req.user) {
-    return next(new CustomError(401, 'Authentication required'))
+    return next(new CustomError('Authentication required', 401))
   }
   
   if (req.user.role !== 'FACULTY' && req.user.role !== 'COMMITTEE') {
-    return next(new CustomError(403, 'Faculty or Committee access required'))
+    return next(new CustomError('Faculty or Committee access required', 403))
   }
   
   next()
@@ -75,11 +75,11 @@ export const requireCommittee = (
   next: NextFunction
 ) => {
   if (!req.user) {
-    return next(new CustomError(401, 'Authentication required'))
+    return next(new CustomError('Authentication required', 401))
   }
   
   if (req.user.role !== 'COMMITTEE') {
-    return next(new CustomError(403, 'Committee access required'))
+    return next(new CustomError('Committee access required', 403))
   }
   
   next()

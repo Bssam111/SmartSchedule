@@ -75,13 +75,28 @@ router.post('/availability', authenticateToken, requireFaculty, async (req: Auth
     const { availability } = req.body
 
     // Update or create availability preferences
-    await prisma.preference.upsert({
+    // First try to find existing preference
+    const existing = await prisma.preference.findFirst({
       where: {
-        userId_type: {
+        userId: req.user!.id,
+        type: 'availability'
+      }
+    })
+
+    if (existing) {
+      await prisma.preference.update({
+        where: { id: existing.id },
+        data: { value: JSON.stringify(availability) }
+      })
+    } else {
+      await prisma.preference.create({
+        data: {
           userId: req.user!.id,
-          type: 'availability' as any
+          type: 'availability',
+          value: JSON.stringify(availability)
         }
-      },
+      })
+    }
       update: {
         value: JSON.stringify(availability)
       },
