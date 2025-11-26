@@ -576,7 +576,7 @@ export default function CommitteeSchedules() {
     const confirmed = await confirm({
       title: 'Unenroll Student',
       message: 'Are you sure you want to unenroll this student?',
-      type: 'warning'
+      variant: 'warning'
     })
     
     if (confirmed) {
