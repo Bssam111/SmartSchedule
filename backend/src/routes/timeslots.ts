@@ -62,3 +62,4 @@ router.get('/', authenticateToken, async (req: AuthRequest, res, next) => {
 
 export { router as timeslotRoutes }
 
+

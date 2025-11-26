@@ -5,11 +5,11 @@ import { CustomError } from './errorHandler'
 export const requireRole = (...allowedRoles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return next(new CustomError(401, 'Authentication required'))
+      return next(new CustomError('Authentication required', 401))
     }
     
     if (!allowedRoles.includes(req.user.role)) {
-      return next(new CustomError(403, `Access denied. Required role: ${allowedRoles.join(' or ')}`))
+      return next(new CustomError(`Access denied. Required role: ${allowedRoles.join(' or ')}`, 403))
     }
     
     next()

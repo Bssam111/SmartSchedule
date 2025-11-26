@@ -65,7 +65,7 @@ router.post('/register/start', authenticateToken, async (req: AuthRequest, res: 
     // Store challenge
     const challengeKey = `register:${userId}:${Date.now()}`
     challenges.set(challengeKey, {
-      challenge: options.challenge,
+      challenge: (options as any).challenge || '',
       userId,
       timestamp: Date.now(),
     })
@@ -215,7 +215,7 @@ router.post('/authenticate/start', async (req: Request, res: Response, next) => 
     // Store challenge
     const challengeKey = `auth:${user.id}:${Date.now()}`
     challenges.set(challengeKey, {
-      challenge: options.challenge,
+      challenge: (options as any).challenge || '',
       userId: user.id,
       timestamp: Date.now(),
     })

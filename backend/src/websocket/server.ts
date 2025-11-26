@@ -1,6 +1,5 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import * as Y from 'yjs'
-import { setupWSConnection } from 'y-websocket'
 
 const PORT = process.env.WS_PORT || 3002
 
@@ -14,8 +13,24 @@ export function createWebSocketServer() {
     console.log('🔌 WebSocket connection established')
     
     try {
-      // Use y-websocket's built-in setup function
-      setupWSConnection(ws, req)
+      // Create a Y.Doc for this connection
+      const doc = new Y.Doc()
+      
+      // Handle messages
+      ws.on('message', (message: Buffer) => {
+        try {
+          Y.applyUpdate(doc, message)
+        } catch (error: any) {
+          console.error('❌ Error applying Y.js update:', error)
+        }
+      })
+
+      // Send updates to client
+      doc.on('update', (update: Uint8Array) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(update)
+        }
+      })
     } catch (error: any) {
       console.error('❌ Error setting up WebSocket connection:', error)
       ws.close()

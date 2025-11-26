@@ -79,7 +79,7 @@ router.post('/availability', authenticateToken, requireFaculty, async (req: Auth
       where: {
         userId_type: {
           userId: req.user!.id,
-          type: 'availability'
+          type: 'availability' as any
         }
       },
       update: {

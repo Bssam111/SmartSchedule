@@ -121,3 +121,4 @@ export function DashboardCharts({ data }: DashboardChartsProps) {
   )
 }
 
+

@@ -33,7 +33,7 @@ export const authenticateToken = async (
     if (error instanceof CustomError) {
       return next(error)
     }
-    next(new CustomError(401, 'Invalid or expired token'))
+    next(new CustomError('Invalid or expired token', 401))
   }
 }
 

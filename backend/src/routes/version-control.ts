@@ -158,9 +158,9 @@ router.post(
           scheduleId,
           version: nextVersion,
           name: `Restored from Version ${version}`,
-          description: `Restored version ${version} by ${req.user!.name}`,
+          description: `Restored version ${version} by ${req.user!.email}`,
           changes: {
-            ...versionToRestore.changes,
+            ...(versionToRestore.changes as object || {}),
             restoredFrom: versionToRestore.version,
             restoredAt: new Date().toISOString(),
             restoredBy: userId,

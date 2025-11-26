@@ -13,15 +13,15 @@ export interface TokenPayload {
 }
 
 export const generateTokens = (payload: TokenPayload) => {
-  const accessToken = jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN
+  const accessToken = jwt.sign(payload as object, JWT_SECRET as string, {
+    expiresIn: JWT_EXPIRES_IN as string | number
   })
 
   const refreshToken = jwt.sign(
-    { userId: payload.userId },
-    JWT_SECRET,
+    { userId: payload.userId } as object,
+    JWT_SECRET as string,
     {
-      expiresIn: JWT_REFRESH_EXPIRES_IN
+      expiresIn: JWT_REFRESH_EXPIRES_IN as string | number
     }
   )
 
@@ -30,10 +30,10 @@ export const generateTokens = (payload: TokenPayload) => {
 
 export const verifyToken = (token: string): TokenPayload => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload
+    const decoded = jwt.verify(token, JWT_SECRET as string) as TokenPayload
     return decoded
   } catch (error) {
-    throw new CustomError(401, 'Invalid or expired token')
+    throw new CustomError('Invalid or expired token', 401)
   }
 }
 
@@ -59,4 +59,5 @@ export const clearTokenCookies = (res: Response) => {
   res.clearCookie('accessToken')
   res.clearCookie('refreshToken')
 }
+
 

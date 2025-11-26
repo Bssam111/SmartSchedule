@@ -268,3 +268,4 @@ export async function registerFingerprint(email: string): Promise<WebAuthnResult
   }
 }
 
+

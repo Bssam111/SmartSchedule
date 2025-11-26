@@ -13,18 +13,26 @@
    - **Frontend service**: Click "New" → "GitHub Repo" → Select your repo (again)
 
 4. **Configure Backend Service** (⚠️ CRITICAL STEP):
-   - Click on the backend service
-   - Go to **Settings** tab
-   - **IMPORTANT**: Find **Root Directory** field and set it to: `backend` (no leading slash, just `backend`)
-   - Find **Dockerfile Path** field and set it to: `Dockerfile.prod`
+   - Click on the backend service ("handsome-radiance")
+   - Go to **Settings** tab → **Build** section
+   - **Option A (Easiest - Use Railway's suggestion)**: 
+     - Set **Dockerfile Path** to: `/backend/Dockerfile.prod` (Railway should suggest this)
+     - Leave Root Directory empty
+   - **Option B (Recommended for monorepos)**:
+     - Go to **Source** section → Click **"Add Root Directory"** → Set to: `backend`
+     - Go to **Build** section → Set **Dockerfile Path** to: `Dockerfile.prod` (relative, not absolute)
    - **Save** the settings (important!)
    - Go to **Variables** tab and add all environment variables (see below)
 
 5. **Configure Frontend Service** (⚠️ CRITICAL STEP):
-   - Click on the frontend service
-   - Go to **Settings** tab
-   - **IMPORTANT**: Find **Root Directory** field and set it to: `smart-schedule` (no leading slash, just `smart-schedule`)
-   - Find **Dockerfile Path** field and set it to: `Dockerfile.prod`
+   - Click on the frontend service ("SmartSchedule")
+   - Go to **Settings** tab → **Build** section
+   - **Option A (Easiest - Use Railway's suggestion)**:
+     - Set **Dockerfile Path** to: `/smart-schedule/Dockerfile.prod` (Railway should suggest this)
+     - Leave Root Directory empty
+   - **Option B (Recommended for monorepos)**:
+     - Go to **Source** section → Click **"Add Root Directory"** → Set to: `smart-schedule`
+     - Go to **Build** section → Set **Dockerfile Path** to: `Dockerfile.prod` (relative, not absolute)
    - **Save** the settings (important!)
    - Go to **Variables** tab and add all environment variables (see below)
 
@@ -48,14 +56,17 @@
 ### ⚠️ Troubleshooting Railway Deployment
 
 **Error: "Dockerfile 'Dockerfile.prod' does not exist"**
-- ✅ **CRITICAL**: You MUST set the **Root Directory** in Railway dashboard for each service:
-  - Go to your service → **Settings** tab
-  - Find **Root Directory** field
-  - **Backend service**: Set to `backend` (without leading slash)
-  - **Frontend service**: Set to `smart-schedule` (without leading slash)
-  - Save settings and redeploy
-- ✅ **Solution**: Verify **Dockerfile Path** is set to `Dockerfile.prod` (relative to Root Directory)
-- ✅ **Solution**: The `railway.toml` files in each directory will be automatically detected once Root Directory is set
+
+**If Railway is suggesting absolute paths** (like `/backend/Dockerfile.prod`):
+- ✅ **Use Railway's suggestion**: Select `/backend/Dockerfile.prod` for backend and `/smart-schedule/Dockerfile.prod` for frontend
+- ✅ **OR set Root Directory** and use relative paths:
+  - Set Root Directory to `backend` → Dockerfile Path: `Dockerfile.prod`
+  - Set Root Directory to `smart-schedule` → Dockerfile Path: `Dockerfile.prod`
+
+**Important Rule:**
+- **If Root Directory is NOT set**: Use absolute paths like `/backend/Dockerfile.prod` ✅
+- **If Root Directory IS set**: Use relative paths like `Dockerfile.prod` ✅
+- **Never mix them**: Don't use absolute paths when Root Directory is set!
 
 **Error: "Error creating build plan with Railway"**
 - ✅ **Solution**: Make sure you set the **Root Directory** correctly:

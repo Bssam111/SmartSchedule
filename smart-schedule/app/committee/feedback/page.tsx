@@ -34,9 +34,11 @@ export default function CommitteeFeedback() {
       setError(null)
       const response = await api.getFeedback()
       
-      if (response.success && response.data?.data) {
+      if (response.success && response.data) {
         // Map API response to UI format
-        const mappedFeedback: FeedbackItem[] = response.data.data.map((item: any) => ({
+        // response.data might be an array or an object with data property
+        const feedbackData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || []
+        const mappedFeedback: FeedbackItem[] = feedbackData.map((item: any) => ({
           id: item.id,
           from: item.user?.role || 'Unknown',
           name: item.user?.name || 'Unknown',

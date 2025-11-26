@@ -158,10 +158,11 @@ export const fileUploadSecurity = (req: Request, res: Response, next: NextFuncti
 
   const maxFileSize = 5 * 1024 * 1024 // 5MB
 
-  if (req.files) {
-    const files = Array.isArray(req.files) ? req.files : Object.values(req.files).flat()
+  const files = (req as any).files
+  if (files) {
+    const fileArray = Array.isArray(files) ? files : Object.values(files).flat()
     
-    for (const file of files) {
+    for (const file of fileArray) {
       if (!allowedMimeTypes.includes(file.mimetype)) {
         throw new CustomError('File type not allowed', 400)
       }
@@ -180,7 +181,7 @@ export const ipWhitelist = (allowedIPs: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress
     
-    if (!allowedIPs.includes(clientIP)) {
+    if (!clientIP || !allowedIPs.includes(clientIP)) {
       throw new CustomError('Access denied: IP not whitelisted', 403)
     }
     
