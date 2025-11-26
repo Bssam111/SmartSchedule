@@ -1,5 +1,4 @@
-// API client for connecting to the backend
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+import { getApiBaseUrl } from './api-utils'
 
 export interface ApiResponse<T> {
   data?: T
@@ -8,10 +7,9 @@ export interface ApiResponse<T> {
 }
 
 class ApiClient {
-  private baseURL: string
-
-  constructor(baseURL: string = API_BASE_URL) {
-    this.baseURL = baseURL
+  // Get base URL dynamically to handle both server and client contexts
+  private get baseURL(): string {
+    return getApiBaseUrl()
   }
 
   private async request<T>(
@@ -45,12 +43,12 @@ class ApiClient {
 
   // Health check
   async healthCheck() {
-    return this.request('/api/health')
+    return this.request('/health')
   }
 
   // Authentication
   async login(email: string, password: string, role: string) {
-    return this.request('/api/auth/login', {
+    return this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password, role }),
     })
@@ -58,11 +56,11 @@ class ApiClient {
 
   // Student endpoints
   async getStudentSchedule(studentId: string) {
-    return this.request(`/api/students/${studentId}/schedule`)
+    return this.request(`/students/${studentId}/schedule`)
   }
 
   async updateStudentPreferences(studentId: string, preferences: any) {
-    return this.request('/api/preferences', {
+    return this.request('/preferences', {
       method: 'POST',
       body: JSON.stringify({ userId: studentId, ...preferences }),
     })
@@ -70,11 +68,11 @@ class ApiClient {
 
   // Faculty endpoints
   async getFacultyAssignments(facultyId: string) {
-    return this.request(`/api/faculty/${facultyId}/assignments`)
+    return this.request(`/faculty/${facultyId}/assignments`)
   }
 
   async updateFacultyAvailability(facultyId: string, availability: any) {
-    return this.request('/api/faculty/availability', {
+    return this.request('/faculty/availability', {
       method: 'POST',
       body: JSON.stringify({ userId: facultyId, availability }),
     })
@@ -82,36 +80,37 @@ class ApiClient {
 
   // Committee endpoints
   async getDraftSchedules() {
-    return this.request('/api/schedules')
+    return this.request('/schedules')
   }
 
   async generateRecommendations() {
-    return this.request('/api/recommendations', {
+    return this.request('/recommendations', {
       method: 'POST',
     })
   }
 
   async getFeedback() {
-    return this.request('/api/feedback')
+    return this.request('/feedback')
   }
 
   // Dashboard endpoints
   async getLevelDashboard() {
-    return this.request('/api/dashboard/level')
+    return this.request('/dashboard/level')
   }
 
   async getCourseDashboard() {
-    return this.request('/api/dashboard/course')
+    return this.request('/dashboard/course')
   }
 
   // Schedule generation
   async generateSchedule(seed: number = 1) {
-    return this.request('/api/generate', {
+    return this.request('/generate', {
       method: 'POST',
       body: JSON.stringify({ seed }),
     })
   }
 }
 
+// Create singleton instance - baseURL is computed dynamically via getter
 export const apiClient = new ApiClient()
 export default apiClient

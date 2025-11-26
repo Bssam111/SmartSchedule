@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { getApiBaseUrl } from '@/lib/api-utils'
 
 interface User {
   id: string
@@ -47,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const apiUrl = getApiBaseUrl()
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {

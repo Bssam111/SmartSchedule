@@ -1,5 +1,7 @@
 // WebAuthn utility functions for fingerprint/biometric authentication
 
+import { getApiBaseUrl } from './api-utils'
+
 export interface WebAuthnResult {
   success: boolean
   user?: {
@@ -38,8 +40,9 @@ export async function authenticateWithFingerprint(email: string): Promise<WebAut
 
   try {
     // Step 1: Request authentication challenge from backend
+    const apiUrl = getApiBaseUrl()
     const challengeResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/webauthn/authenticate/start`,
+      `${apiUrl}/webauthn/authenticate/start`,
       {
         method: 'POST',
         headers: {
@@ -103,7 +106,7 @@ export async function authenticateWithFingerprint(email: string): Promise<WebAut
     // Step 3: Send authentication response to backend
     const response = credential.response as AuthenticatorAssertionResponse
     const authResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/webauthn/authenticate/complete`,
+      `${apiUrl}/webauthn/authenticate/complete`,
       {
         method: 'POST',
         headers: {
@@ -200,8 +203,9 @@ export async function registerFingerprint(email: string): Promise<WebAuthnResult
 
   try {
     // Step 1: Request registration challenge from backend
+    const apiUrl = getApiBaseUrl()
     const challengeResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/webauthn/register/start`,
+      `${apiUrl}/webauthn/register/start`,
       {
         method: 'POST',
         headers: {
@@ -275,7 +279,7 @@ export async function registerFingerprint(email: string): Promise<WebAuthnResult
     // Step 3: Send registration response to backend
     const response = credential.response as AuthenticatorAttestationResponse
     const regResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/webauthn/register/complete`,
+      `${apiUrl}/webauthn/register/complete`,
       {
         method: 'POST',
         headers: {
