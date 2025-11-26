@@ -166,7 +166,7 @@ export default function CommitteeSchedules() {
       showDialog({
         title: 'Missing Fields',
         message: 'Please fill in all required fields and select at least one day',
-        type: 'warning'
+        variant: 'warning'
       })
       return
     }

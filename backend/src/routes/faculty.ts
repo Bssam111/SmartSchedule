@@ -97,15 +97,6 @@ router.post('/availability', authenticateToken, requireFaculty, async (req: Auth
         }
       })
     }
-      update: {
-        value: JSON.stringify(availability)
-      },
-      create: {
-        userId: req.user!.id,
-        type: 'availability',
-        value: JSON.stringify(availability)
-      }
-    })
 
     res.json({
       success: true,
