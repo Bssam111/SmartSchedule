@@ -109,7 +109,7 @@ export default function CommitteeSchedules() {
           method: 'POST',
           credentials: 'include'
         })
-      } catch (error) {
+      } catch (err) {
         console.log('Time slots may already exist, continuing...')
       }
       
@@ -154,8 +154,8 @@ export default function CommitteeSchedules() {
       if (roomsData.success) setRooms(roomsData.data)
       if (timeSlotsData.success) setTimeSlots(timeSlotsData.data)
       if (studentsData.success) setStudents(studentsData.data)
-    } catch (error) {
-      console.error('Error loading data:', error)
+    } catch (err) {
+      console.error('Error loading data:', err)
     } finally {
       setLoading(false)
     }
@@ -436,8 +436,8 @@ export default function CommitteeSchedules() {
       })
       
       console.log('🗑️ Confirmation result:', confirmed)
-    } catch (error) {
-      console.error('🗑️ Error in confirm dialog:', error)
+    } catch (err) {
+      console.error('🗑️ Error in confirm dialog:', err)
       return
     }
     
@@ -467,8 +467,8 @@ export default function CommitteeSchedules() {
         console.log('🗑️ Delete failed:', result.error)
         error('Error deleting section: ' + result.error)
       }
-    } catch (error) {
-      console.error('🗑️ Error deleting section:', error)
+    } catch (err) {
+      console.error('🗑️ Error deleting section:', err)
       error('Error deleting section')
     }
   }
@@ -505,9 +505,9 @@ export default function CommitteeSchedules() {
         setSearchResults([])
         error('Student not found: ' + result.error)
       }
-    } catch (error) {
-      console.error('Error searching student:', error)
-      error('Error searching student: ' + error.message)
+    } catch (err) {
+      console.error('Error searching student:', err)
+      error('Error searching student: ' + (err instanceof Error ? err.message : 'Unknown error'))
     }
   }
 
@@ -566,9 +566,9 @@ export default function CommitteeSchedules() {
       } else {
         error('Error enrolling student: ' + result.error)
       }
-    } catch (error) {
-      console.error('Error enrolling student:', error)
-      error('Error enrolling student: ' + error.message)
+    } catch (err) {
+      console.error('Error enrolling student:', err)
+      error('Error enrolling student: ' + (err instanceof Error ? err.message : 'Unknown error'))
     }
   }
 
@@ -594,9 +594,9 @@ export default function CommitteeSchedules() {
         } else {
           error('Error unenrolling student: ' + result.error)
         }
-      } catch (error) {
-        console.error('Error unenrolling student:', error)
-        error('Error unenrolling student: ' + error.message)
+      } catch (err) {
+        console.error('Error unenrolling student:', err)
+        error('Error unenrolling student: ' + (err instanceof Error ? err.message : 'Unknown error'))
       }
     }
   }
