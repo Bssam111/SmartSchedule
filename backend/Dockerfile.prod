@@ -62,10 +62,13 @@ COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 RUN npm ci --only=production && \
     npm cache clean --force
 
-# Copy built application, Prisma, and tsconfig.json (needed for tsconfig-paths)
+# Copy built application and Prisma
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nodejs:nodejs /app/tsconfig.json ./tsconfig.json
+
+# Create production tsconfig.json with baseUrl pointing to dist (where compiled files are)
+RUN echo '{"compilerOptions":{"baseUrl":"dist","paths":{"@/*":["*"]}}}' > tsconfig.json && \
+    chown nodejs:nodejs tsconfig.json
 
 # Switch to non-root user
 USER nodejs
