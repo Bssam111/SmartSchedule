@@ -50,11 +50,31 @@ export async function authenticateWithFingerprint(email: string): Promise<WebAut
       }
     )
 
+    // Check if response is JSON before parsing
+    const contentType = challengeResponse.headers.get('content-type')
     if (!challengeResponse.ok) {
-      const errorData = await challengeResponse.json()
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await challengeResponse.json()
+        return {
+          success: false,
+          error: errorData.error || 'Failed to start authentication',
+        }
+      } else {
+        const text = await challengeResponse.text()
+        console.error('Non-JSON error response:', text.substring(0, 200))
+        return {
+          success: false,
+          error: `Server returned ${challengeResponse.status}. Check if backend is running and API URL is correct.`,
+        }
+      }
+    }
+
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await challengeResponse.text()
+      console.error('Non-JSON response received:', text.substring(0, 200))
       return {
         success: false,
-        error: errorData.error || 'Failed to start authentication',
+        error: 'Server returned invalid response. Check if backend is running and API URL is correct.',
       }
     }
 
@@ -110,6 +130,17 @@ export async function authenticateWithFingerprint(email: string): Promise<WebAut
         }),
       }
     )
+
+    // Check if response is JSON before parsing
+    const authContentType = authResponse.headers.get('content-type')
+    if (!authContentType || !authContentType.includes('application/json')) {
+      const text = await authResponse.text()
+      console.error('Non-JSON auth response:', text.substring(0, 200))
+      return {
+        success: false,
+        error: `Server returned ${authResponse.status}. Check if backend is running and API URL is correct.`,
+      }
+    }
 
     const authData = await authResponse.json()
 
@@ -181,11 +212,31 @@ export async function registerFingerprint(email: string): Promise<WebAuthnResult
       }
     )
 
+    // Check if response is JSON before parsing
+    const regContentType = challengeResponse.headers.get('content-type')
     if (!challengeResponse.ok) {
-      const errorData = await challengeResponse.json()
+      if (regContentType && regContentType.includes('application/json')) {
+        const errorData = await challengeResponse.json()
+        return {
+          success: false,
+          error: errorData.error || 'Failed to start registration',
+        }
+      } else {
+        const text = await challengeResponse.text()
+        console.error('Non-JSON error response:', text.substring(0, 200))
+        return {
+          success: false,
+          error: `Server returned ${challengeResponse.status}. Check if backend is running and API URL is correct.`,
+        }
+      }
+    }
+
+    if (!regContentType || !regContentType.includes('application/json')) {
+      const text = await challengeResponse.text()
+      console.error('Non-JSON response received:', text.substring(0, 200))
       return {
         success: false,
-        error: errorData.error || 'Failed to start registration',
+        error: 'Server returned invalid response. Check if backend is running and API URL is correct.',
       }
     }
 
@@ -246,6 +297,17 @@ export async function registerFingerprint(email: string): Promise<WebAuthnResult
       }
     )
 
+    // Check if response is JSON before parsing
+    const regDataContentType = regResponse.headers.get('content-type')
+    if (!regDataContentType || !regDataContentType.includes('application/json')) {
+      const text = await regResponse.text()
+      console.error('Non-JSON registration response:', text.substring(0, 200))
+      return {
+        success: false,
+        error: `Server returned ${regResponse.status}. Check if backend is running and API URL is correct.`,
+      }
+    }
+
     const regData = await regResponse.json()
 
     if (regResponse.ok && regData.success) {
@@ -267,5 +329,6 @@ export async function registerFingerprint(email: string): Promise<WebAuthnResult
     }
   }
 }
+
 
 
