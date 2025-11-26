@@ -62,9 +62,10 @@ COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 RUN npm ci --only=production && \
     npm cache clean --force
 
-# Copy built application and Prisma
+# Copy built application, Prisma, and tsconfig.json (needed for tsconfig-paths)
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nodejs:nodejs /app/tsconfig.json ./tsconfig.json
 
 # Switch to non-root user
 USER nodejs
