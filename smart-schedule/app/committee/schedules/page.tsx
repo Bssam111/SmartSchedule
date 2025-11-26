@@ -180,7 +180,7 @@ export default function CommitteeSchedules() {
       showDialog({
         title: 'Missing Time Slots',
         message: 'Please select time slots for all selected days',
-        type: 'warning'
+        variant: 'warning'
       })
       return
     }
@@ -239,7 +239,7 @@ export default function CommitteeSchedules() {
           showDialog({
             title: 'Faculty Schedule Conflict',
             message: `⚠️ **Instructor Conflict Detected**\n\n${instructor} already has a meeting on **${day}** at **${time}**.\n\n**Existing Course:** ${existingCourse}\n\nPlease choose a different time slot or day to avoid conflicts.`,
-            type: 'warning',
+            variant: 'warning',
             confirmText: 'Choose Different Time',
             onConfirm: () => {
               // Close the modal and focus on the time selection area
@@ -262,7 +262,7 @@ export default function CommitteeSchedules() {
           showDialog({
             title: 'Faculty Availability Conflict',
             message: `🚫 **Faculty Availability Conflict**\n\n**${instructor}** is not available on **${day}** at **${time}**.\n\n**Reason:** ${reason}\n\nPlease choose a different time slot that aligns with the faculty member's availability.`,
-            type: 'warning',
+            variant: 'warning',
             confirmText: 'Choose Different Time',
             onConfirm: () => {
               // Close the modal and focus on the time selection area
@@ -284,7 +284,7 @@ export default function CommitteeSchedules() {
           showDialog({
             title: 'Room Schedule Conflict',
             message: `🏢 **Room Conflict Detected**\n\nRoom **${room}** is already occupied on **${day}** at **${time}**.\n\n**Existing Course:** ${existingCourse}\n**Instructor:** ${instructor}\n\nPlease select a different room or time slot.`,
-            type: 'warning',
+            variant: 'warning',
             confirmText: 'Choose Different Room',
             onConfirm: () => {
               // Close the modal and focus on the room selection
@@ -309,7 +309,7 @@ export default function CommitteeSchedules() {
           showDialog({
             title: 'Schedule Conflict Detected',
             message: `⚠️ This instructor already has a meeting on ${day} at ${startTime}-${endTime}.\n\nPlease choose a different time slot or day to avoid conflicts.`,
-            type: 'warning',
+            variant: 'warning',
             confirmText: 'Choose Different Time',
             onConfirm: () => {
               // Focus on the time selection area
@@ -327,7 +327,7 @@ export default function CommitteeSchedules() {
           showDialog({
             title: 'Room Conflict',
             message: `🏢 The selected room is already occupied at the chosen time.\n\nPlease select a different room or time slot.`,
-            type: 'warning',
+            variant: 'warning',
             confirmText: 'Choose Different Room',
             onConfirm: () => {
               // Focus on the room selection
@@ -344,7 +344,7 @@ export default function CommitteeSchedules() {
           showDialog({
             title: 'Student Schedule Conflict',
             message: `👥 There are students with conflicting schedules.\n\nPlease review the student assignments and choose a different time.`,
-            type: 'warning'
+            variant: 'warning'
           })
           warning('Student schedule conflict detected')
           return
@@ -432,7 +432,7 @@ export default function CommitteeSchedules() {
       confirmed = await confirm({
         title: 'Delete Section',
         message: 'Are you sure you want to delete this section?',
-        type: 'warning'
+        variant: 'warning'
       })
       
       console.log('🗑️ Confirmation result:', confirmed)
@@ -478,7 +478,7 @@ export default function CommitteeSchedules() {
       showDialog({
         title: 'Missing University ID',
         message: 'Please enter a University ID',
-        type: 'warning'
+        variant: 'warning'
       })
       return
     }
@@ -516,7 +516,7 @@ export default function CommitteeSchedules() {
       showDialog({
         title: 'Missing Information',
         message: 'Please enter a University ID',
-        type: 'warning'
+        variant: 'warning'
       })
       return
     }
@@ -525,7 +525,7 @@ export default function CommitteeSchedules() {
       showDialog({
         title: 'No Section Selected',
         message: 'No section selected',
-        type: 'warning'
+        variant: 'warning'
       })
       return
     }
@@ -534,7 +534,7 @@ export default function CommitteeSchedules() {
       showDialog({
         title: 'Student Not Found',
         message: 'Please search and select the student first',
-        type: 'warning'
+        variant: 'warning'
       })
       return
     }
