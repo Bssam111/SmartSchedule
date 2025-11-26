@@ -13,20 +13,22 @@ export interface TokenPayload {
 }
 
 export const generateTokens = (payload: TokenPayload) => {
+  const secret: string = String(JWT_SECRET || 'dev-secret-key-not-for-production')
+  
   const accessToken = jwt.sign(
     payload,
-    String(JWT_SECRET),
+    secret,
     {
-      expiresIn: String(JWT_EXPIRES_IN)
-    }
+      expiresIn: String(JWT_EXPIRES_IN || '7d')
+    } as jwt.SignOptions
   )
 
   const refreshToken = jwt.sign(
     { userId: payload.userId },
-    String(JWT_SECRET),
+    secret,
     {
-      expiresIn: String(JWT_REFRESH_EXPIRES_IN)
-    }
+      expiresIn: String(JWT_REFRESH_EXPIRES_IN || '30d')
+    } as jwt.SignOptions
   )
 
   return { accessToken, refreshToken }
