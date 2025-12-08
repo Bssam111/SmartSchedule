@@ -84,7 +84,7 @@ router.post('/assign', authenticateToken, async (req: AuthRequest, res, next) =>
     }
 
     // Verify faculty is the instructor or admin
-    if (req.user?.role !== 'ADMIN' && assignment.section.instructor.id !== userId) {
+    if (req.user?.role !== 'ADMIN' && assignment.section.instructor?.id !== userId) {
       throw new CustomError('Only the course instructor can assign grades', 403)
     }
 
@@ -478,7 +478,15 @@ router.get('/faculty/all', authenticateToken, async (req: AuthRequest, res, next
 
     for (const section of sections) {
       // Group assignments by semester (from grade, or use current semester if no grade)
-      const assignmentsBySemester: Record<string, typeof section.assignments> = {}
+      const assignmentsBySemester: Record<string, Array<{
+        id: string
+        studentId: string
+        courseId: string
+        student: { id: string; name: string; universityId: string; email: string }
+        course: { id: string; code: string; name: string; credits: number }
+        section: { id: string; name: string }
+        grade?: { id: string; numericGrade: number; letterGrade: string; points: number; semester: number; academicYear: string | null }
+      }>> = {}
 
       for (const assignment of section.assignments) {
         const semesterKey = assignment.grade
@@ -490,11 +498,40 @@ router.get('/faculty/all', authenticateToken, async (req: AuthRequest, res, next
         if (!assignmentsBySemester[semesterKey]) {
           assignmentsBySemester[semesterKey] = []
         }
-        assignmentsBySemester[semesterKey].push({
-          ...assignment,
+        const assignmentData: {
+          id: string
+          studentId: string
+          courseId: string
+          student: { id: string; name: string; universityId: string; email: string }
+          course: { id: string; code: string; name: string; credits: number }
+          section: { id: string; name: string }
+          grade?: { id: string; numericGrade: number; letterGrade: string; points: number; semester: number; academicYear: string | null }
+        } = {
+          id: assignment.id,
+          studentId: assignment.studentId,
+          courseId: assignment.courseId,
+          student: {
+            id: assignment.student.id,
+            name: assignment.student.name,
+            universityId: assignment.student.universityId || '',
+            email: assignment.student.email
+          },
           course: section.course,
           section: { id: section.id, name: section.name }
-        })
+        }
+        
+        if (assignment.grade) {
+          assignmentData.grade = {
+            id: assignment.grade.id,
+            numericGrade: assignment.grade.numericGrade,
+            letterGrade: assignment.grade.letterGrade || '',
+            points: assignment.grade.points || 0,
+            semester: assignment.grade.semester,
+            academicYear: assignment.grade.academicYear
+          }
+        }
+        
+        assignmentsBySemester[semesterKey].push(assignmentData)
       }
 
       // If no assignments, still include the section under current semester
@@ -603,7 +640,7 @@ router.get('/section/:sectionId', authenticateToken, async (req: AuthRequest, re
       throw new CustomError('Section not found', 404)
     }
 
-    if (req.user?.role !== 'ADMIN' && section.instructor.id !== userId) {
+    if (req.user?.role !== 'ADMIN' && section.instructor?.id !== userId) {
       throw new CustomError('Unauthorized', 403)
     }
 

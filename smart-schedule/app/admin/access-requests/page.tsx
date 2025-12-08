@@ -250,7 +250,7 @@ export default function AccessRequestsPage() {
     return (
       <ProtectedRoute requiredRole="admin">
         <div className="min-h-screen bg-gray-50">
-          <AppHeader />
+          <AppHeader title="Access Requests" />
           <div className="max-w-7xl mx-auto px-4 py-8">
             <p className="text-red-600">Access denied. Admin role required.</p>
           </div>

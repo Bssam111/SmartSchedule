@@ -132,7 +132,12 @@ router.post('/enroll', authenticateToken, async (req: AuthRequest, res, next) =>
     }
 
     // Check section capacity
-    const currentEnrollments = section.assignments.length
+    const currentEnrollments = await prisma.assignment.count({
+      where: {
+        sectionId: section.id,
+        status: 'ENROLLED'
+      }
+    })
     const maxCapacity = registrationWindow?.maxStudentCapacity ?? 30
 
     if (currentEnrollments >= maxCapacity && req.user?.role === 'STUDENT') {
@@ -202,10 +207,10 @@ router.post('/enroll', authenticateToken, async (req: AuthRequest, res, next) =>
         studentId,
         courseId: data.courseId,
         planId: await getStudentPlanId(studentId),
-        status: 'ENROLLED'
+        status: 'IN_PROGRESS'
       },
       update: {
-        status: 'ENROLLED'
+        status: 'IN_PROGRESS'
       }
     })
 
@@ -288,7 +293,7 @@ router.post('/drop', authenticateToken, async (req: AuthRequest, res, next) => {
       where: {
         studentId,
         courseId: assignment.courseId,
-        status: 'ENROLLED'
+        status: 'IN_PROGRESS'
       },
       data: {
         status: 'NOT_TAKEN'
@@ -481,10 +486,10 @@ export async function autoEnrollStudent(studentId: string) {
         studentId,
         courseId: course.id,
         planId: plan.id,
-        status: 'ENROLLED'
+        status: 'IN_PROGRESS'
       },
       update: {
-        status: 'ENROLLED'
+        status: 'IN_PROGRESS'
       }
     })
 

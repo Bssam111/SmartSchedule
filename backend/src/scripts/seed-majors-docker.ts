@@ -7,16 +7,16 @@ async function seedMajorsAndCommittee() {
   try {
     // Seed majors
     const majors = [
-      { name: 'Software Engineering' },
-      { name: 'Computer Science' }
+      { code: 'SWE', name: 'Software Engineering' },
+      { code: 'CS', name: 'Computer Science' }
     ]
 
     for (const major of majors) {
       try {
         await prisma.major.upsert({
-          where: { name: major.name },
+          where: { code: major.code },
           update: {},
-          create: { name: major.name }
+          create: { code: major.code, name: major.name }
         })
         console.log(`✅ Seeded major: ${major.name}`)
       } catch (error) {

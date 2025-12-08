@@ -4,6 +4,7 @@ import { AccessRequestStatus, Prisma, UserRole } from '@prisma/client'
 import { prisma } from '@/config/database'
 import { CustomError } from '@/middleware/errorHandler'
 import { sendAcceptanceEmail, sendRejectionEmail, sendConfirmationEmail } from '@/utils/email'
+import { canEnrollInCourse } from '@/utils/prerequisites'
 
 const SALT_ROUNDS = 12
 const TEMP_PASSWORD_LENGTH = 14
