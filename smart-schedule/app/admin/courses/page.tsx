@@ -46,7 +46,8 @@ export default function AdminCoursesPage() {
     setLoading(true)
     setError('')
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/courses`, {
         credentials: 'include'
       })
@@ -94,7 +95,8 @@ export default function AdminCoursesPage() {
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/courses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,7 +124,8 @@ export default function AdminCoursesPage() {
     if (!selectedCourse) return
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/courses/${selectedCourse.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -154,7 +157,8 @@ export default function AdminCoursesPage() {
     if (!courseToDelete) return
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/courses/${courseToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include'

@@ -25,7 +25,8 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     const loadPasswordRequirements = async () => {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        const { getApiBaseUrl } = await import('@/lib/api-utils')
+        const API_BASE_URL = getApiBaseUrl()
         const response = await fetch(`${API_BASE_URL}/password-requirements`, {
           credentials: 'include'
         })
@@ -57,7 +58,8 @@ export default function AdminSettingsPage() {
     setSaveMessage('')
     
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/password-requirements`, {
         method: 'PUT',
         headers: {

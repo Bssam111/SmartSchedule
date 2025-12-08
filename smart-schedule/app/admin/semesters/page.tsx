@@ -54,7 +54,8 @@ export default function SemestersPage() {
   const loadSemesters = async () => {
     try {
       setLoading(true)
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const [semestersRes, currentRes] = await Promise.all([
         fetch(`${API_BASE_URL}/semesters`, { credentials: 'include' }),
         fetch(`${API_BASE_URL}/semesters/current`, { credentials: 'include' })
@@ -89,7 +90,8 @@ export default function SemestersPage() {
     }
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/semesters/set-current`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -126,7 +128,8 @@ export default function SemestersPage() {
         return new Date(datetimeLocal).toISOString()
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/semesters`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -172,7 +175,8 @@ export default function SemestersPage() {
         return new Date(datetimeLocal).toISOString()
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/semesters/registration-windows`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -209,7 +213,8 @@ export default function SemestersPage() {
 
   const handleToggleWindow = async (windowId: string, isOpen: boolean) => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/semesters/registration-windows/${windowId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -234,7 +239,8 @@ export default function SemestersPage() {
     }
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/semesters/${semesterId}/close`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

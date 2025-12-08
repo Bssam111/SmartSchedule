@@ -121,7 +121,8 @@ export default function AdminDashboard() {
       }
 
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        const { getApiBaseUrl } = await import('@/lib/api-utils')
+        const API_BASE_URL = getApiBaseUrl()
         
         // Load user count
         const usersResponse = await fetch(`${API_BASE_URL}/users`, {
