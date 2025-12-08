@@ -43,7 +43,8 @@ export default function AdminUsersPage() {
     setLoading(true)
     setError('')
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/users`, {
         credentials: 'include'
       })
@@ -85,7 +86,8 @@ export default function AdminUsersPage() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,7 +115,8 @@ export default function AdminUsersPage() {
     if (!selectedUser) return
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/users/${selectedUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -145,7 +148,8 @@ export default function AdminUsersPage() {
     if (!userToDelete) return
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/users/${userToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include'
@@ -176,7 +180,8 @@ export default function AdminUsersPage() {
     }
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const { getApiBaseUrl } = await import('@/lib/api-utils')
+      const API_BASE_URL = getApiBaseUrl()
       const response = await fetch(`${API_BASE_URL}/users/${userToResetPassword.id}/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

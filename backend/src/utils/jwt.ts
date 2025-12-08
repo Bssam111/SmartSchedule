@@ -54,30 +54,61 @@ export const setTokenCookies = (res: Response, accessToken: string, refreshToken
     ? 'lax' 
     : ((process.env.SESSION_COOKIE_SAMESITE as 'lax' | 'none' | 'strict') || (isProduction ? 'none' : 'lax'))
   
-  res.cookie('accessToken', accessToken, {
+  // Get domain from environment variable if set (for cross-domain cookies in production)
+  // If not set, cookies will be set for the current domain
+  const domain = process.env.SESSION_COOKIE_DOMAIN || undefined
+  
+  // Cookie options
+  const cookieOptions: {
+    httpOnly: boolean
+    secure: boolean
+    sameSite: 'lax' | 'none' | 'strict'
+    maxAge: number
+    path: string
+    domain?: string
+  } = {
     httpOnly: true,
     secure,
     sameSite,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/',
-  })
+  }
+  
+  // Only set domain if explicitly configured (for cross-domain scenarios)
+  // Setting domain incorrectly can prevent cookies from being set
+  if (domain) {
+    cookieOptions.domain = domain
+  }
+  
+  res.cookie('accessToken', accessToken, cookieOptions)
 
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure,
-    sameSite,
+  // Refresh token with longer expiry
+  const refreshCookieOptions = {
+    ...cookieOptions,
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    path: '/',
-  })
+  }
+  res.cookie('refreshToken', refreshToken, refreshCookieOptions)
   
   if (process.env.NODE_ENV === 'development') {
-    console.log('[Auth] Cookies set:', { secure, sameSite, path: '/', httpOnly: true })
+    console.log('[Auth] Cookies set:', { secure, sameSite, path: '/', httpOnly: true, domain: domain || 'current domain' })
   }
 }
 
 export const clearTokenCookies = (res: Response) => {
-  res.clearCookie('accessToken')
-  res.clearCookie('refreshToken')
+  const domain = process.env.SESSION_COOKIE_DOMAIN || undefined
+  const clearOptions: {
+    path: string
+    domain?: string
+  } = {
+    path: '/',
+  }
+  
+  if (domain) {
+    clearOptions.domain = domain
+  }
+  
+  res.clearCookie('accessToken', clearOptions)
+  res.clearCookie('refreshToken', clearOptions)
 }
 
 
