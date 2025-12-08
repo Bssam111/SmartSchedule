@@ -92,10 +92,45 @@ RUN echo '{"compilerOptions":{"baseUrl":"dist","paths":{"@/*":["*"]}}}' > tsconf
 # This must be done before switching to nodejs user
 RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
     echo 'set -e' >> /app/entrypoint.sh && \
+    echo '' >> /app/entrypoint.sh && \
+    echo '# Check if DATABASE_URL is set' >> /app/entrypoint.sh && \
+    echo 'if [ -z "$DATABASE_URL" ]; then' >> /app/entrypoint.sh && \
+    echo '  echo "❌ ERROR: DATABASE_URL environment variable is not set!"' >> /app/entrypoint.sh && \
+    echo '  echo "❌ Please set DATABASE_URL in Railway service variables"' >> /app/entrypoint.sh && \
+    echo '  exit 1' >> /app/entrypoint.sh && \
+    echo 'fi' >> /app/entrypoint.sh && \
+    echo '' >> /app/entrypoint.sh && \
+    echo '# Wait for database to be ready (with retries)' >> /app/entrypoint.sh && \
+    echo 'echo "🔍 Checking database connection..."' >> /app/entrypoint.sh && \
+    echo 'MAX_RETRIES=30' >> /app/entrypoint.sh && \
+    echo 'RETRY_COUNT=0' >> /app/entrypoint.sh && \
+    echo 'while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do' >> /app/entrypoint.sh && \
+    echo '  if npx prisma db execute --stdin <<< "SELECT 1" > /dev/null 2>&1; then' >> /app/entrypoint.sh && \
+    echo '    echo "✅ Database connection successful"' >> /app/entrypoint.sh && \
+    echo '    break' >> /app/entrypoint.sh && \
+    echo '  fi' >> /app/entrypoint.sh && \
+    echo '  RETRY_COUNT=$((RETRY_COUNT + 1))' >> /app/entrypoint.sh && \
+    echo '  echo "⏳ Waiting for database... ($RETRY_COUNT/$MAX_RETRIES)"' >> /app/entrypoint.sh && \
+    echo '  sleep 2' >> /app/entrypoint.sh && \
+    echo 'done' >> /app/entrypoint.sh && \
+    echo '' >> /app/entrypoint.sh && \
+    echo 'if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then' >> /app/entrypoint.sh && \
+    echo '  echo "❌ ERROR: Could not connect to database after $MAX_RETRIES attempts"' >> /app/entrypoint.sh && \
+    echo '  echo "❌ Please check:"' >> /app/entrypoint.sh && \
+    echo '  echo "   1. Database service is running in Railway"' >> /app/entrypoint.sh && \
+    echo '   2. DATABASE_URL is correctly set"' >> /app/entrypoint.sh && \
+    echo '   3. Backend and database services are in the same Railway project"' >> /app/entrypoint.sh && \
+    echo '  exit 1' >> /app/entrypoint.sh && \
+    echo 'fi' >> /app/entrypoint.sh && \
+    echo '' >> /app/entrypoint.sh && \
     echo 'echo "🔄 Running database migrations..."' >> /app/entrypoint.sh && \
     echo 'npx prisma migrate deploy || {' >> /app/entrypoint.sh && \
     echo '  echo "⚠️  Migration failed, attempting db push as fallback..."' >> /app/entrypoint.sh && \
-    echo '  npx prisma db push --accept-data-loss || exit 1' >> /app/entrypoint.sh && \
+    echo '  npx prisma db push --accept-data-loss || {' >> /app/entrypoint.sh && \
+    echo '    echo "❌ ERROR: Database migration and push both failed"' >> /app/entrypoint.sh && \
+    echo '    echo "❌ Please check your DATABASE_URL and database service status"' >> /app/entrypoint.sh && \
+    echo '    exit 1' >> /app/entrypoint.sh && \
+    echo '  }' >> /app/entrypoint.sh && \
     echo '}' >> /app/entrypoint.sh && \
     echo 'echo "✅ Migrations completed successfully"' >> /app/entrypoint.sh && \
     echo 'echo "🚀 Starting application server..."' >> /app/entrypoint.sh && \
