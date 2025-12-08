@@ -60,9 +60,29 @@ export function initializeEmailService() {
       port: emailConfig.port,
       secure: emailConfig.secure,
       auth: emailConfig.auth,
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000, // 10 seconds
+      socketTimeout: 10000, // 10 seconds
       tls: {
-        rejectUnauthorized: false // Allow self-signed certificates in development
-      }
+        rejectUnauthorized: false, // Allow self-signed certificates in development
+        ciphers: 'SSLv3' // Some SMTP servers require specific cipher
+      },
+      // For port 587 (STARTTLS), requireTLS should be true
+      requireTLS: emailConfig.port === 587,
+      // For port 465 (SSL/TLS), secure should be true
+      // For port 587 (STARTTLS), secure should be false
+      debug: process.env.NODE_ENV === 'development', // Enable debug in development
+      logger: process.env.NODE_ENV === 'development' // Enable logging in development
+    })
+    
+    // Verify connection configuration
+    console.log('📧 SMTP Configuration:', {
+      host: emailConfig.host,
+      port: emailConfig.port,
+      secure: emailConfig.secure,
+      requireTLS: emailConfig.port === 587,
+      user: emailConfig.auth.user,
+      from: emailConfig.from
     })
 
     console.log('✅ Email service initialized')
