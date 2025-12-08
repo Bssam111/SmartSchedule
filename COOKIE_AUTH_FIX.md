@@ -21,7 +21,19 @@ cookieCount: 0
 
 ## Fixes Applied
 
-### 1. Updated Admin Users Page (`smart-schedule/app/admin/users/page.tsx`)
+### 1. Updated All Admin Pages to Use Centralized API Utility
+
+Fixed the following admin pages to use the centralized `getApiBaseUrl()` function instead of hardcoded `process.env.NEXT_PUBLIC_API_URL`:
+
+- `smart-schedule/app/admin/users/page.tsx`
+- `smart-schedule/app/admin/dashboard/page.tsx`
+- `smart-schedule/app/admin/semesters/page.tsx`
+- `smart-schedule/app/admin/courses/page.tsx`
+- `smart-schedule/app/admin/settings/page.tsx`
+
+**Note:** `smart-schedule/app/admin/access-requests/page.tsx` already uses the centralized `apiClient` from `@/lib/api`, which is correct.
+
+### 2. Updated Admin Users Page (`smart-schedule/app/admin/users/page.tsx`)
 
 Changed all API calls to use the centralized `getApiBaseUrl()` function instead of hardcoded `process.env.NEXT_PUBLIC_API_URL`:
 
