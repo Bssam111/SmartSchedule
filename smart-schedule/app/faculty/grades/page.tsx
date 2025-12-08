@@ -363,7 +363,7 @@ export default function FacultyGradesPage() {
                         {/* Section Header */}
                         <div className="mb-4 pb-3 border-b border-gray-200">
                           <h3 className="text-lg font-semibold text-gray-800">
-                            {sectionGroup.course.code} - {sectionGroup.course.name}
+                            {sectionGroup.course ? `${sectionGroup.course.code} - ${sectionGroup.course.name}` : 'Unknown Course'}
                           </h3>
                           <p className="text-sm text-gray-500 mt-1">
                             Section: {sectionGroup.sectionName} • {sectionGroup.assignments.length} student(s)
