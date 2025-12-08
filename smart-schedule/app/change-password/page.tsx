@@ -18,7 +18,10 @@ export default function ChangePasswordPage() {
     // Check if user requires password change
     const checkRequiresChange = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/auth/me', {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL 
+          ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`
+          : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        const response = await fetch(`${apiBaseUrl}/auth/me`, {
           method: 'GET',
           credentials: 'include',
         })
@@ -88,7 +91,10 @@ export default function ChangePasswordPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/change-password', {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL 
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`
+        : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${apiBaseUrl}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

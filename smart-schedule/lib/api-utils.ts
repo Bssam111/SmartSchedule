@@ -1,4 +1,24 @@
-const LOCAL_FALLBACK = 'http://localhost:3001/api'
+// Determine fallback based on environment
+// In production/deployment, don't default to localhost
+const getLocalFallback = (): string => {
+  // If we're in a browser and have no env vars, check if we're in development
+  if (typeof window !== 'undefined') {
+    // In browser, check if we're on localhost (development)
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:3001/api'
+    }
+    // In production, log warning but return empty to force env var usage
+    console.error('⚠️ NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL must be set in production')
+    return ''
+  }
+  // Server-side: default to localhost only in development
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3001/api'
+  }
+  // Production: log warning
+  console.error('⚠️ NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL must be set in production')
+  return ''
+}
 
 function sanitizeUrl(rawUrl: string | undefined): string | null {
   if (!rawUrl) {
@@ -33,12 +53,18 @@ export function getApiBaseUrl(): string {
     return legacyUrl
   }
 
-  // SSR path: fall back immediately so Next.js can build URLs even without window
+  // SSR path: fall back only in development
   if (globalThis.window === undefined) {
-    return LOCAL_FALLBACK
+    const fallback = getLocalFallback()
+    if (fallback) return fallback
+    // In production without env var, return empty string - will cause fetch to fail with clear error
+    return ''
   }
 
-  return LOCAL_FALLBACK
+  const fallback = getLocalFallback()
+  if (fallback) return fallback
+  // In production without env var, return empty string - will cause fetch to fail with clear error
+  return ''
 }
 
 /**
@@ -73,7 +99,10 @@ export function getApiBaseUrlForBrowser(): string {
       return browserUrl
     }
     
-    return LOCAL_FALLBACK
+    const fallback = getLocalFallback()
+    if (fallback) return fallback
+    // In production without env var, return empty string - will cause fetch to fail with clear error
+    return ''
   }
   
   // Server-side: use service name if in Docker, localhost otherwise

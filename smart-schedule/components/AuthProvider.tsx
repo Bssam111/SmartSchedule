@@ -130,12 +130,14 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         
         if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
           // Check if backend is accessible by trying a simple test
+          const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+          const backendUrl = apiUrl.replace('/api', '')
           const diagnosticInfo = `\n\n🔍 Diagnostic Steps:\n` +
-            `1. Open http://localhost:3001/healthz in your browser\n` +
-            `2. If it doesn't work, check: docker logs smartschedule-backend-dev\n` +
-            `3. Verify container is running: docker ps | findstr backend\n` +
-            `4. Check port mapping: docker port smartschedule-backend-dev\n` +
-            `5. Restart backend: docker-compose -f docker-compose.dev.yml restart backend-dev\n\n` +
+            `1. Check backend URL: ${backendUrl}\n` +
+            `2. Open ${backendUrl}/healthz in your browser\n` +
+            `3. Verify NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL is set correctly\n` +
+            `4. If using Docker locally: docker logs smartschedule-backend-dev\n` +
+            `5. If using Railway: Check Railway dashboard for backend service status\n\n` +
             `📋 See BACKEND_CONNECTION_TROUBLESHOOTING.md for detailed help.`
           
           return {
@@ -227,7 +229,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
       if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
         return {
           success: false,
-          error: 'Cannot connect to server. Please ensure the backend is running at http://localhost:3001'
+          error: `Cannot connect to backend server. Please check your NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL environment variable.`
         }
       }
       
