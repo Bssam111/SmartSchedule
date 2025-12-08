@@ -1,10 +1,17 @@
-// Lazy import nodemailer to avoid crashing if module is missing
+// Lazy import email libraries to avoid crashing if modules are missing
 let nodemailer: typeof import('nodemailer') | null = null
+let sendgrid: typeof import('@sendgrid/mail') | null = null
+
 try {
   nodemailer = require('nodemailer')
 } catch (error) {
-  console.warn('⚠️  nodemailer module not found. Email functionality will be disabled.')
-  console.warn('⚠️  Install nodemailer: npm install nodemailer')
+  console.warn('⚠️  nodemailer module not found. SMTP email functionality will be disabled.')
+}
+
+try {
+  sendgrid = require('@sendgrid/mail')
+} catch (error) {
+  // SendGrid is optional, only warn if we're trying to use it
 }
 
 interface EmailConfig {
@@ -20,11 +27,34 @@ interface EmailConfig {
 
 let transporter: any = null
 let emailConfig: EmailConfig | null = null
+let useSendGrid = false
+let sendGridFrom = ''
 
 /**
- * Initialize email transporter with SMTP configuration
+ * Initialize email service (SendGrid preferred, SMTP fallback)
  */
 export function initializeEmailService() {
+  // Check for SendGrid first (preferred for cloud deployments)
+  const sendGridApiKey = process.env['SENDGRID_API_KEY']
+  const sendGridFromEmail = process.env['SENDGRID_FROM'] || process.env['SMTP_FROM'] || process.env['SMTP_USER'] || 'noreply@smartschedule24.com'
+  
+  if (sendGridApiKey && sendgrid) {
+    try {
+      sendgrid.setApiKey(sendGridApiKey)
+      useSendGrid = true
+      sendGridFrom = sendGridFromEmail
+      console.log('✅ Email service initialized with SendGrid')
+      console.log('📧 SendGrid From:', sendGridFrom)
+      return true
+    } catch (error) {
+      console.warn('⚠️  Failed to initialize SendGrid, falling back to SMTP:', error)
+    }
+  } else if (sendGridApiKey && !sendgrid) {
+    console.warn('⚠️  SENDGRID_API_KEY is set but @sendgrid/mail is not installed.')
+    console.warn('⚠️  Install: npm install @sendgrid/mail')
+  }
+  
+  // Fall back to SMTP
   if (!nodemailer) {
     console.warn('⚠️  Email service not available: nodemailer module not installed.')
     return false
@@ -94,7 +124,7 @@ export function initializeEmailService() {
 }
 
 /**
- * Send an email
+ * Send an email (using SendGrid if available, otherwise SMTP)
  */
 export async function sendEmail(
   to: string,
@@ -102,22 +132,55 @@ export async function sendEmail(
   html: string,
   text?: string
 ): Promise<boolean> {
+  // Try to initialize if not already initialized
+  if (!useSendGrid && (!transporter || !emailConfig)) {
+    console.warn('⚠️  Email service not initialized. Attempting to initialize...')
+    const initialized = initializeEmailService()
+    if (!initialized) {
+      console.error('❌ Email service not initialized. Email not sent to:', to)
+      console.error('❌ Subject:', subject)
+      console.error('❌ Check email configuration: SENDGRID_API_KEY or SMTP settings')
+      return false
+    }
+  }
+
+  // Use SendGrid if available
+  if (useSendGrid && sendgrid) {
+    try {
+      console.log(`📧 Attempting to send email via SendGrid to: ${to}`)
+      console.log(`📧 From: ${sendGridFrom}, Subject: ${subject}`)
+      
+      const msg = {
+        to,
+        from: sendGridFrom,
+        subject,
+        text: text || html.replaceAll(/<[^>]*>/g, ''), // Strip HTML for text version
+        html
+      }
+
+      const result = await sendgrid.send(msg)
+      
+      console.log(`✅ Email sent successfully via SendGrid to: ${to}`)
+      if (result[0]?.statusCode) {
+        console.log(`📧 SendGrid status: ${result[0].statusCode}`)
+      }
+      return true
+    } catch (error: any) {
+      console.error(`❌ Failed to send email via SendGrid to ${to}:`, error)
+      console.error(`❌ Error message: ${error.message}`)
+      if (error.response?.body) {
+        console.error(`❌ SendGrid error details:`, error.response.body)
+      }
+      // Don't fall back to SMTP on SendGrid error - it's likely a configuration issue
+      return false
+    }
+  }
+
+  // Fall back to SMTP
   if (!nodemailer) {
     console.error('❌ Email service not available: nodemailer module not installed.')
     console.error('❌ Install nodemailer: npm install nodemailer')
     return false
-  }
-
-  // Try to initialize if not already initialized
-  if (!transporter || !emailConfig) {
-    console.warn('⚠️  Email service not initialized. Attempting to initialize...')
-    const initialized = initializeEmailService()
-    if (!initialized || !emailConfig) {
-      console.error('❌ Email service not initialized. Email not sent to:', to)
-      console.error('❌ Subject:', subject)
-      console.error('❌ Check SMTP configuration: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS')
-      return false
-    }
   }
 
   // TypeScript guard: emailConfig should be non-null at this point
@@ -127,7 +190,7 @@ export async function sendEmail(
   }
 
   try {
-    console.log(`📧 Attempting to send email to: ${to}`)
+    console.log(`📧 Attempting to send email via SMTP to: ${to}`)
     console.log(`📧 From: ${emailConfig.from}, Subject: ${subject}`)
     
     const result = await transporter.sendMail({
@@ -138,14 +201,14 @@ export async function sendEmail(
       html
     })
 
-    console.log(`✅ Email sent successfully to: ${to}`)
+    console.log(`✅ Email sent successfully via SMTP to: ${to}`)
     console.log(`📧 Email message ID: ${result.messageId}`)
     if (result.response) {
       console.log(`📧 SMTP response: ${result.response}`)
     }
     return true
   } catch (error: any) {
-    console.error(`❌ Failed to send email to ${to}:`, error)
+    console.error(`❌ Failed to send email via SMTP to ${to}:`, error)
     console.error(`❌ Error message: ${error.message}`)
     if (error.code) {
       console.error(`❌ Error code: ${error.code}`)
