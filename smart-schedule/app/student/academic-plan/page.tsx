@@ -140,10 +140,10 @@ export default function AcademicPlanPage() {
           <PrerequisiteModal
             isOpen={isModalOpen}
             onClose={handleCloseModal}
-            courseCode={selectedCourse.course.code}
-            courseName={selectedCourse.course.name}
-            prerequisites={selectedCourse.course.prerequisites || []}
-            corequisites={selectedCourse.course.corequisites}
+            courseCode={selectedCourse.course?.code || 'N/A'}
+            courseName={selectedCourse.course?.name || 'Unknown Course'}
+            prerequisites={selectedCourse.course?.prerequisites || []}
+            corequisites={selectedCourse.course?.corequisites || []}
           />
         )}
       </div>

@@ -210,7 +210,7 @@ export default function StudentDashboard() {
 
   const totalCredits = useMemo(() => {
     return enrollments.reduce((sum, enrollment) => {
-      const credits = enrollment.section.course.credits || 0
+      const credits = enrollment.section.course?.credits || 0
       return sum + credits
     }, 0)
   }, [enrollments])
@@ -237,8 +237,8 @@ export default function StudentDashboard() {
           time: `${normalizedStart}-${normalizedEnd}`,
           rawStart: normalizedStart,
           rawEnd: normalizedEnd,
-          course: enrollment.section.course.code,
-          courseName: enrollment.section.course.name,
+          course: enrollment.section.course?.code || 'N/A',
+          courseName: enrollment.section.course?.name || 'Unknown Course',
           room: enrollment.section.room?.name || 'TBD',
           instructor: enrollment.section.instructor?.name || 'TBD'
         }
@@ -429,7 +429,7 @@ export default function StudentDashboard() {
                   >
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {enrollment.section.course.code} · {enrollment.section.course.name}
+                        {enrollment.section.course?.code || 'N/A'} · {enrollment.section.course?.name || 'Unknown Course'}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Instructor: {enrollment.section.instructor?.name || 'TBD'} · Room: {enrollment.section.room?.name || 'TBD'}
@@ -460,7 +460,7 @@ export default function StudentDashboard() {
                   {nextCourses.map(enrollment => (
                     <div key={enrollment.id} className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
                       <p className="text-sm font-medium text-blue-900">
-                        {enrollment.section.course.code} - {enrollment.section.course.name}
+                        {enrollment.section.course?.code || 'N/A'} - {enrollment.section.course?.name || 'Unknown Course'}
                       </p>
                       <p className="text-xs text-blue-700 mt-1">
                         {enrollment.section.meetings.length > 0

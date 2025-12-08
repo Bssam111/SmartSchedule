@@ -247,10 +247,10 @@ export default function RegistrationPage() {
                   <div key={enrollment.id} className="flex items-center justify-between border border-gray-200 rounded-lg p-4">
                     <div>
                       <p className="font-semibold text-gray-900">
-                        {enrollment.course.code} - {enrollment.course.name}
+                        {enrollment.course?.code || 'N/A'} - {enrollment.course?.name || 'Unknown Course'}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
-                        Section: {enrollment.section.name} | {enrollment.course.credits} credits
+                        Section: {enrollment.section?.name || 'N/A'} | {enrollment.course?.credits || 0} credits
                       </p>
                     </div>
                     {canEnroll && (
@@ -297,7 +297,7 @@ export default function RegistrationPage() {
                           <div>
                             <p className="font-semibold text-gray-900">{section.name}</p>
                             <p className="text-sm text-gray-500 mt-1">
-                              Instructor: {section.instructor.name}
+                              Instructor: {section.instructor?.name || 'Unassigned'}
                               {section.room && ` | Room: ${section.room.name}`}
                             </p>
                             {section.meetings.length > 0 && (

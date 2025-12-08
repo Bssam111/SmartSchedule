@@ -242,7 +242,7 @@ export default function FacultyDashboard() {
                           {assignments.map((assignment) => (
                             <div key={assignment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                               <div>
-                                <h4 className="font-medium text-gray-900">{assignment.course.code} - {assignment.course.name}</h4>
+                                <h4 className="font-medium text-gray-900">{assignment.course?.code || 'N/A'} - {assignment.course?.name || 'Unknown Course'}</h4>
                                 <p className="text-sm text-gray-600">Section {assignment.section} • {assignment.time} • {assignment.room}</p>
                               </div>
                               <div className="text-right">

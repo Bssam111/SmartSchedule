@@ -215,11 +215,11 @@ export default function TranscriptPage() {
                           {group.grades.map(grade => (
                             <tr key={grade.id} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{grade.course.code}</div>
-                                <div className="text-sm text-gray-500">{grade.course.name}</div>
+                                <div className="text-sm font-medium text-gray-900">{grade.course?.code || 'N/A'}</div>
+                                <div className="text-sm text-gray-500">{grade.course?.name || 'Unknown Course'}</div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {grade.course.credits}
+                                {grade.course?.credits || 0}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <span className={`px-2 py-1 rounded text-sm font-medium ${getGradeColor(grade.letterGrade)}`}>

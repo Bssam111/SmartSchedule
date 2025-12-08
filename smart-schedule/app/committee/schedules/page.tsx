@@ -10,15 +10,15 @@ interface Section {
     id: string
     code: string
     name: string
-  }
+  } | null
   instructor: {
     id: string
     name: string
-  }
+  } | null
   room: {
     id: string
     name: string
-  }
+  } | null
   meetings: Array<{
     id: string
     dayOfWeek: string
@@ -673,16 +673,16 @@ export default function CommitteeSchedules() {
                   sections.map(section => (
                     <tr key={section.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {section.course.code} - {section.course.name}
+                        {section.course ? `${section.course.code} - ${section.course.name}` : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         Section {section.id.slice(-3)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {section.instructor.name}
+                        {section.instructor?.name || 'Unassigned'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {section.room.name}
+                        {section.room?.name || 'No room'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {section.meetings && section.meetings.length > 0 ? (
@@ -747,7 +747,7 @@ export default function CommitteeSchedules() {
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Unique Instructors</h3>
             <p className="text-3xl font-bold text-purple-600">
-              {new Set(sections.map(s => s.instructor?.id).filter(Boolean)).size}
+              {new Set(sections.map(s => s.instructor?.id).filter((id): id is string => Boolean(id))).size}
             </p>
           </div>
         </div>
@@ -931,7 +931,7 @@ export default function CommitteeSchedules() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Enroll Students in {selectedSection.course.code} - {selectedSection.course.name}
+              Enroll Students in {selectedSection.course ? `${selectedSection.course.code} - ${selectedSection.course.name}` : 'Section'}
             </h3>
             <div className="space-y-4">
               <div>

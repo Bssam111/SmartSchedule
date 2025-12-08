@@ -59,7 +59,7 @@ export default function StudentSchedule() {
         const enrollmentsData = result.data || []
         console.log('📅 Loaded enrollments:', enrollmentsData.length)
         enrollmentsData.forEach((enrollment: any) => {
-          console.log(`  - ${enrollment.course.code}: ${enrollment.meetings?.length || 0} meetings`)
+          console.log(`  - ${enrollment.course?.code || 'N/A'}: ${enrollment.meetings?.length || 0} meetings`)
           enrollment.meetings?.forEach((meeting: any) => {
             console.log(`    ${meeting.dayOfWeek} ${meeting.startTime}-${meeting.endTime}`)
           })
@@ -98,8 +98,8 @@ export default function StudentSchedule() {
           time: `${normalizedStart}-${normalizedEnd}`,
           rawStart: normalizedStart,
           rawEnd: normalizedEnd,
-          course: enrollment.course.code,
-          courseName: enrollment.course.name,
+          course: enrollment.course?.code || 'N/A',
+          courseName: enrollment.course?.name || 'Unknown Course',
           room: enrollment.room?.name || 'TBD',
           instructor: enrollment.instructor?.name || 'TBD'
         }
@@ -247,8 +247,8 @@ export default function StudentSchedule() {
                     (enrollment.meetings || []).map((meeting, idx) => (
                       <tr key={`${enrollment.id}-${idx}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{enrollment.course.code}</div>
-                          <div className="text-sm text-gray-500">{enrollment.course.name}</div>
+                          <div className="text-sm font-medium text-gray-900">{enrollment.course?.code || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">{enrollment.course?.name || 'Unknown Course'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{meeting.dayOfWeek}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">

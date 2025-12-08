@@ -42,7 +42,7 @@ interface Section {
     id: string
     code: string
     name: string
-  }
+  } | null
 }
 
 interface SemesterGroup {
@@ -51,7 +51,7 @@ interface SemesterGroup {
   sections: Array<{
     sectionId: string
     sectionName: string
-    course: { id: string; code: string; name: string }
+    course: { id: string; code: string; name: string } | null
     assignments: Assignment[]
   }>
 }
@@ -259,7 +259,7 @@ export default function FacultyGradesPage() {
       return {
         semesterKey,
         semesterName,
-        sections: sections.sort((a, b) => a.course.code.localeCompare(b.course.code))
+        sections: sections.sort((a, b) => (a.course?.code || '').localeCompare(b.course?.code || ''))
       }
     }).sort((a, b) => {
       // Sort by academic year (descending) then semester number (descending)
