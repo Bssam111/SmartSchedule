@@ -51,3 +51,4 @@ bcrypt.hash(PASSWORD, 12).then(newHash => {
   console.error('Error:', err);
 });
 
+

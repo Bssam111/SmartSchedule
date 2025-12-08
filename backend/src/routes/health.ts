@@ -24,6 +24,16 @@ router.get('/', async (req, res) => {
   }
 })
 
+// Simple healthz endpoint for readiness checks (no DB check)
+router.get('/healthz', (_req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString()
+  })
+})
+
 export { router as healthRoutes }
+
+
 
 

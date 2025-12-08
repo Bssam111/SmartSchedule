@@ -160,15 +160,78 @@ router.get('/:id/enrollments', authenticateToken, async (req: AuthRequest, res, 
   }
 })
 
+// GET /api/students/me/schedule (must come before /:id/schedule)
+router.get('/me/schedule', authenticateToken, async (req: AuthRequest, res, next) => {
+  try {
+    if (!req.user?.id) {
+      throw new CustomError('Unauthorized', 401)
+    }
+    const assignments = await getStudentAssignments(req.user.id)
+
+    // Transform assignments to enrollment format expected by frontend
+    const enrollments = assignments
+      .filter(assignment => assignment.status === 'ENROLLED') // Only show enrolled courses
+      .map(assignment => ({
+        id: assignment.id,
+        course: {
+          code: assignment.section.course.code,
+          name: assignment.section.course.name,
+          credits: assignment.section.course.credits
+        },
+        instructor: assignment.section.instructor ? {
+          name: assignment.section.instructor.name
+        } : null,
+        room: assignment.section.room ? {
+          name: assignment.section.room.name
+        } : null,
+        meetings: assignment.section.meetings.map(meeting => ({
+          dayOfWeek: meeting.dayOfWeek,
+          startTime: meeting.startTime,
+          endTime: meeting.endTime
+        }))
+      }))
+
+    res.json({
+      success: true,
+      data: enrollments
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 // GET /api/students/:id/schedule
 router.get('/:id/schedule', authenticateToken, async (req: AuthRequest, res, next) => {
   try {
     const targetId = resolveTargetStudentId(req, req.params.id)
     const assignments = await getStudentAssignments(targetId)
 
+    // Transform assignments to enrollment format expected by frontend
+    const enrollments = assignments
+      .filter(assignment => assignment.status === 'ENROLLED') // Only show enrolled courses
+      .map(assignment => ({
+        id: assignment.id,
+        course: {
+          code: assignment.section.course.code,
+          name: assignment.section.course.name,
+          credits: assignment.section.course.credits
+        },
+        instructor: assignment.section.instructor ? {
+          name: assignment.section.instructor.name
+        } : null,
+        room: assignment.section.room ? {
+          name: assignment.section.room.name
+        } : null,
+        meetings: assignment.section.meetings.map(meeting => ({
+          dayOfWeek: meeting.dayOfWeek,
+          startTime: meeting.startTime,
+          endTime: meeting.endTime
+        }))
+      }))
+
     res.json({
       success: true,
-      data: assignments
+      data: enrollments
     })
   } catch (error) {
     next(error)

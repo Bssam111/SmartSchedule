@@ -78,6 +78,16 @@ const quickActions = [
     )
   },
   {
+    href: '/committee/faculty-assignment',
+    title: 'Faculty Assignment',
+    copy: 'Assign faculty members to courses and sections.',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    )
+  },
+  {
     href: '/analytics',
     title: 'Analytics',
     copy: 'Monitor capacity, instructor loads, and risk signals.',
@@ -101,6 +111,7 @@ export default function CommitteeDashboard() {
     { id: 2, from: 'Faculty', message: 'Room capacity insufficient for CS101', status: 'Resolved', time: '2 days ago' }
   ])
   const [loadingCharts, setLoadingCharts] = useState(true)
+  const [currentSemester, setCurrentSemester] = useState<{ name: string; academicYear: string; semesterNumber: number } | null>(null)
   const [chartData, setChartData] = useState({
     courses: [
       { label: 'Computer Science', value: 18 },
@@ -146,7 +157,36 @@ export default function CommitteeDashboard() {
       }
     }
 
+    const loadCurrentSemester = async () => {
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        const response = await fetch(`${API_BASE_URL}/semesters/current`, {
+          credentials: 'include'
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.data) {
+            const currentSem = data.data
+            setCurrentSemester({
+              name: `${currentSem.academicYear} - Semester ${currentSem.semesterNumber}`,
+              academicYear: currentSem.academicYear,
+              semesterNumber: currentSem.semesterNumber
+            })
+          } else {
+            setCurrentSemester(null)
+          }
+        } else {
+          setCurrentSemester(null)
+        }
+      } catch (error) {
+        console.error('Error loading current semester:', error instanceof Error ? error.message : 'Unknown error')
+        setCurrentSemester(null)
+      }
+    }
+
     loadChartData()
+    loadCurrentSemester()
   }, [])
 
   const summaryValues = useMemo(() => {
@@ -169,6 +209,16 @@ export default function CommitteeDashboard() {
             <p className="text-slate-500 mt-2">
               Monitor draft schedules, respond to feedback, and keep every department aligned from one central workspace.
             </p>
+            {currentSemester && (
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3 inline-block">
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium text-gray-700">Current Semester:</span>
+                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded text-sm font-semibold">
+                    {currentSemester.name}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[280px,1fr]">

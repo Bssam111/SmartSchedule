@@ -19,6 +19,9 @@ node_modules/
 # Production
 /build
 /dist
+backend/dist/
+smart-schedule/.next/
+smart-schedule/out/
 
 # Misc
 .DS_Store

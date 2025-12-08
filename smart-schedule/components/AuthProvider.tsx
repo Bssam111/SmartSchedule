@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react'
 import { getApiBaseUrl } from '@/lib/api-utils'
 
 interface User {
@@ -9,6 +9,18 @@ interface User {
   name: string
   role: string
   universityId?: string
+  requiresPasswordChange?: boolean
+  major?: {
+    id: string
+    name: string
+    code: string
+  } | null
+  registrationSemester?: {
+    id: string
+    name: string
+    academicYear: string
+    semesterNumber: number
+  } | null
 }
 
 interface AuthState {
@@ -28,33 +40,68 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check for stored user on mount
-    const storedUser = localStorage.getItem('smartSchedule_user')
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser))
-      } catch (error) {
-        console.error('Error parsing stored user:', error)
-        localStorage.removeItem('smartSchedule_user')
+    // Check for stored user on mount (client-side only)
+    if (typeof globalThis.window !== 'undefined') {
+      const storedUser = localStorage.getItem('smartSchedule_user')
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser))
+        } catch (error) {
+          console.error('Error parsing stored user:', error)
+          localStorage.removeItem('smartSchedule_user')
+        }
       }
     }
     setLoading(false)
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     try {
-      let apiUrl = getApiBaseUrl()
+      // Use environment-aware API URL function
+      const { getApiBaseUrlForBrowser } = await import('@/lib/api-utils')
+      const apiUrl = globalThis.window !== undefined
+        ? getApiBaseUrlForBrowser()
+        : getApiBaseUrl()
+      const baseUrl = apiUrl.replace('/api', '')
       
-      // Double-check and fix URL if corrupted (safety check)
-      if (apiUrl.includes('.opp') || apiUrl.includes('pr..pp') || !apiUrl.includes('handsome-radiance-production.up.railway.app')) {
-        console.warn('[Login] CORRUPTED URL DETECTED, fixing:', apiUrl)
-        apiUrl = 'https://handsome-radiance-production.up.railway.app/api'
-        console.log('[Login] Using corrected URL:', apiUrl)
+      // Log the URLs being used for debugging
+      console.log('[Login] Environment check:', {
+        hasWindow: globalThis.window !== undefined,
+        apiUrl,
+        baseUrl,
+        envApiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
+        envApiUrl: process.env.NEXT_PUBLIC_API_URL,
+      })
+      
+      // Health check with better error handling (non-blocking - we'll try login anyway)
+      // This is just a pre-check, if it fails we'll still attempt login
+      try {
+        const healthCheckController = new AbortController()
+        const timeoutId = setTimeout(() => healthCheckController.abort(), 3000) // 3 second timeout
+        
+        const healthCheck = await fetch(`${baseUrl}/healthz`, {
+          method: 'GET',
+          credentials: 'include',
+          signal: healthCheckController.signal,
+        })
+        clearTimeout(timeoutId)
+        
+        if (!healthCheck.ok) {
+          console.warn('[Login] Health check returned non-OK status:', healthCheck.status, healthCheck.statusText)
+          // Don't fail here - let login attempt proceed
+        } else {
+          console.log('[Login] ✅ Health check passed')
+        }
+      } catch (healthError) {
+        // Health check failed, but don't block login - backend might still be accessible
+        const errorMessage = healthError instanceof Error ? healthError.message : 'Unknown error'
+        console.warn('[Login] ⚠️ Health check failed (will still attempt login):', errorMessage, 'Base URL:', baseUrl)
+        // Continue to login attempt - the actual login will show the real error if backend is down
       }
       
       const loginUrl = `${apiUrl}/auth/login`
@@ -62,22 +109,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[Login] Attempting login to:', loginUrl)
       console.log('[Login] Email:', email)
       console.log('[Login] API URL verified:', apiUrl)
+      console.log('[Login] Base URL:', baseUrl)
       
-      const response = await fetch(loginUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      })
+      let response: Response
+      try {
+        response = await fetch(loginUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ email, password }),
+        })
+      } catch (fetchError) {
+        // Handle network errors (CORS, connection refused, etc.)
+        const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown error'
+        console.error('[Login] Fetch error:', errorMessage)
+        console.error('[Login] URL attempted:', loginUrl)
+        console.error('[Login] Base URL:', baseUrl)
+        
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+          // Check if backend is accessible by trying a simple test
+          const diagnosticInfo = `\n\n🔍 Diagnostic Steps:\n` +
+            `1. Open http://localhost:3001/healthz in your browser\n` +
+            `2. If it doesn't work, check: docker logs smartschedule-backend-dev\n` +
+            `3. Verify container is running: docker ps | findstr backend\n` +
+            `4. Check port mapping: docker port smartschedule-backend-dev\n` +
+            `5. Restart backend: docker-compose -f docker-compose.dev.yml restart backend-dev\n\n` +
+            `📋 See BACKEND_CONNECTION_TROUBLESHOOTING.md for detailed help.`
+          
+          return {
+            success: false,
+            error: `❌ Cannot connect to backend server at ${baseUrl}${diagnosticInfo}`
+          }
+        }
+        
+        return {
+          success: false,
+          error: `Network error: ${errorMessage}\n\nURL attempted: ${loginUrl}`
+        }
+      }
 
       console.log('[Login] Response status:', response.status)
       console.log('[Login] Response URL:', response.url)
 
       // Check if response is JSON before parsing
       const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
+      if (!contentType?.includes('application/json')) {
         const text = await response.text()
         console.error('[Login] Non-JSON response received:', text.substring(0, 200))
         return { 
@@ -96,11 +174,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: data.name || '',
           role: data.role || 'STUDENT',
           universityId: data.universityId,
+          requiresPasswordChange: data.requiresPasswordChange || data.user?.requiresPasswordChange || false,
         }
 
         setUser(userData)
-        localStorage.setItem('smartSchedule_user', JSON.stringify(userData))
-        localStorage.setItem('smartSchedule_auth', 'true')
+        if (typeof globalThis.window !== 'undefined') {
+          localStorage.setItem('smartSchedule_user', JSON.stringify(userData))
+          localStorage.setItem('smartSchedule_auth', 'true')
+          // Store token for Authorization header (backup to cookies)
+          if (data.token) {
+            localStorage.setItem('smartSchedule_token', data.token)
+            console.log('[Login] ✅ Token stored in localStorage')
+          } else {
+            console.warn('[Login] ⚠️ No token in login response!')
+          }
+        }
+
+        // Check if password change/reset is required
+        // Check both the response data and userData for the flag
+        const needsPasswordReset = data.requiresPasswordChange || 
+                                  data.requiresPasswordReset || 
+                                  userData.requiresPasswordChange ||
+                                  data.user?.requiresPasswordChange
+
+        if (needsPasswordReset) {
+          console.log('[Login] 🔄 Password reset required, redirecting to /reset-password')
+          if (typeof globalThis.window !== 'undefined') {
+            // Use setTimeout to ensure state is updated before redirect
+            setTimeout(() => {
+              window.location.href = '/reset-password'
+            }, 100)
+          }
+          return { 
+            success: true, 
+            requiresPasswordChange: true, 
+            requiresPasswordReset: true 
+          }
+        }
 
         return { success: true }
       } else {
@@ -111,39 +221,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('[Login] Login error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+      
+      // Provide helpful error messages
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        return {
+          success: false,
+          error: 'Cannot connect to server. Please ensure the backend is running at http://localhost:3001'
+        }
+      }
+      
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'An unexpected error occurred' 
+        error: errorMessage
       }
     }
-  }
+  }, [])
 
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem('smartSchedule_user')
-    localStorage.removeItem('smartSchedule_auth')
-  }
+  const logout = useCallback(async () => {
+    try {
+      // Call backend logout to clear cookies
+      const apiUrl = getApiBaseUrl()
+      await fetch(`${apiUrl}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      }).catch(() => {
+        // Ignore errors - we'll clear local state anyway
+      })
+    } catch {
+      // Ignore errors
+    } finally {
+      // Always clear local state (client-side only)
+      setUser(null)
+      if (typeof globalThis.window !== 'undefined') {
+        localStorage.removeItem('smartSchedule_user')
+        localStorage.removeItem('smartSchedule_auth')
+        localStorage.removeItem('smartSchedule_token')
+      }
+    }
+  }, [])
 
-  const getCurrentUser = () => {
+  const getCurrentUser = useCallback(() => {
     return user
-  }
+  }, [user])
 
-  const authState: AuthState = {
-    isLoading: loading,
-    isAuthenticated: !!user,
-  }
+  const authState: AuthState = useMemo(
+    () => ({
+      isLoading: loading,
+      isAuthenticated: !!user,
+    }),
+    [loading, user]
+  )
+
+  const contextValue = useMemo(
+    () => ({
+      user,
+      loading,
+      login,
+      logout,
+      isAuthenticated: !!user,
+      getCurrentUser,
+      authState,
+    }),
+    [user, loading, login, logout, getCurrentUser, authState]
+  )
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        logout,
-        isAuthenticated: !!user,
-        getCurrentUser,
-        authState,
-      }}
+      value={contextValue}
     >
       {children}
     </AuthContext.Provider>

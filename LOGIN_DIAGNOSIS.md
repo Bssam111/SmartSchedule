@@ -110,3 +110,4 @@ After seeding database:
 ✅ Login returns 200 with user data
 ✅ Frontend can login successfully
 
+

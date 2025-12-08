@@ -84,3 +84,4 @@ railway connect postgres
 
 Or use Railway Dashboard → Postgres → Query tab → Paste SQL → Run
 
+

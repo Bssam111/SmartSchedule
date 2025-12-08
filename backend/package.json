@@ -4,8 +4,12 @@
   "description": "SmartSchedule Backend API - Node.js + Express + TypeScript",
   "main": "dist/server.js",
   "scripts": {
+    "kill-port": "node scripts/kill-port.js",
     "dev": "tsx watch -r tsconfig-paths/register src/server.ts",
-    "build": "tsc",
+    "dev:local": "node scripts/kill-port.js 3001 && tsx watch -r tsconfig-paths/register src/server.ts",
+    "dev:docker": "tsx watch -r tsconfig-paths/register src/server.ts",
+    "dev:clean": "node scripts/kill-port.js && npm run dev",
+    "build": "tsc -p tsconfig.json",
     "start": "node -r tsconfig-paths/register dist/server.js",
     "test": "vitest",
     "test:watch": "vitest --watch",
@@ -36,6 +40,7 @@
     "@prisma/client": "^5.22.0",
     "@simplewebauthn/server": "^13.2.2",
     "@simplewebauthn/types": "^12.0.0",
+    "@types/nodemailer": "^7.0.4",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",
@@ -54,7 +59,9 @@
     "jsonwebtoken": "^9.0.2",
     "lib0": "^0.2.114",
     "morgan": "^1.10.0",
+    "nodemailer": "^7.0.11",
     "redis": "^4.6.10",
+    "tsconfig-paths": "^4.2.0",
     "validator": "^13.11.0",
     "winston": "^3.11.0",
     "ws": "^8.18.3",
@@ -62,8 +69,7 @@
     "y-protocols": "^1.0.6",
     "y-websocket": "^3.0.0",
     "yjs": "^13.6.27",
-    "zod": "^3.22.4",
-    "tsconfig-paths": "^4.2.0"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

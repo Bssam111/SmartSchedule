@@ -61,3 +61,4 @@ From `seed_complete_database.sql`:
 3. **If users exist but login fails** - Check password hash format
 4. **Check backend logs** - Railway → backend → Logs to see detailed error
 
+

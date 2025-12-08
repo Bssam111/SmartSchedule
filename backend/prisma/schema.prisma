@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
@@ -12,84 +9,98 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  name        String
-  password    String
-  universityId String?  @unique
-  role        UserRole @default(STUDENT)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  sections     Section[]
-  preferences  Preference[]
-  assignments  Assignment[]
-  feedback     Feedback[]
-  notifications Notification[]
-  roles        Role[]
-  authenticators Authenticator[]
+  id                   String          @id @default(cuid())
+  email                String          @unique
+  name                 String
+  password             String
+  universityId         String?         @unique
+  role                 UserRole        @default(STUDENT)
+  majorId              String?
+  major                Major?           @relation(fields: [majorId], references: [id])
+  currentLevel         Int?             // 1-8 for students (deprecated - use registrationSemesterId)
+  registrationSemesterId String?       // Semester when student registered
+  registrationSemester Semester?       @relation("StudentRegistration", fields: [registrationSemesterId], references: [id])
+  requiresPasswordChange Boolean        @default(false)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  assignments          Assignment[]
+  authenticators       Authenticator[]
+  feedback             Feedback[]
+  notifications        Notification[]
+  preferences          Preference[]
+  sections             Section[]
+  roles                Role[]          @relation("RoleToUser")
+  reviewedAccessRequests AccessRequest[] @relation("AccessRequestReviewer")
+  studentProgress      StudentProgress[]
+  grades               Grade[]
+  courseFaculty        CourseFaculty[]
 
   @@map("users")
 }
 
 model Authenticator {
-  id              String   @id @default(cuid())
-  credentialID    String   @unique
-  userId          String
-  publicKey       String
-  counter         Int      @default(0)
-  deviceName      String?
-  createdAt       DateTime @default(now())
-  lastUsed        DateTime @default(now())
-
-  // Relations
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  credentialID String   @unique
+  userId       String
+  publicKey    String
+  counter      Int      @default(0)
+  deviceName   String?
+  createdAt    DateTime @default(now())
+  lastUsed     DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("authenticators")
 }
 
 model Role {
-  id   String @id @default(cuid())
-  name String @unique
-
-  users User[]
+  id    String @id @default(cuid())
+  name  String @unique
+  users User[] @relation("RoleToUser")
 
   @@map("roles")
 }
 
 model Course {
-  id          String   @id @default(cuid())
-  code        String   @unique
+  id          String       @id @default(cuid())
+  code        String       @unique
   name        String
   credits     Int
   levelId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  level       Level      @relation(fields: [levelId], references: [id])
-  sections    Section[]
+  courseType  CourseType   @default(REQUIRED)
+  electiveGroupId String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   assignments Assignment[]
+  level       Level        @relation(fields: [levelId], references: [id])
+  sections    Section[]
+  prerequisites Prerequisite[] @relation("PrerequisiteCourse")
+  prerequisiteFor Prerequisite[] @relation("PrerequisiteFor")
+  corequisites Corequisite[] @relation("CorequisiteCourse")
+  corequisiteFor Corequisite[] @relation("CorequisiteFor")
+  planCourses  CourseInPlan[]
+  studentProgress StudentProgress[]
+  grades        Grade[]
+  electiveGroup ElectiveGroup? @relation(fields: [electiveGroupId], references: [id])
+  courseFaculty CourseFaculty[]
 
   @@map("courses")
 }
 
 model Section {
-  id        String   @id @default(cuid())
-  name      String
-  courseId  String
-  instructorId String
-  roomId    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  course     Course     @relation(fields: [courseId], references: [id])
-  instructor User       @relation(fields: [instructorId], references: [id])
-  room       Room?      @relation(fields: [roomId], references: [id])
-  meetings   SectionMeeting[]
-  assignments Assignment[]
+  id           String           @id @default(cuid())
+  name         String
+  courseId     String
+  instructorId String?
+  roomId       String?
+  semesterId   String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  assignments  Assignment[]
+  meetings     SectionMeeting[]
+  course       Course           @relation(fields: [courseId], references: [id])
+  instructor   User?            @relation(fields: [instructorId], references: [id])
+  room         Room?            @relation(fields: [roomId], references: [id])
+  semester     Semester?        @relation(fields: [semesterId], references: [id])
 
   @@map("sections")
 }
@@ -102,23 +113,19 @@ model SectionMeeting {
   endTime   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@map("section_meetings")
 }
 
 model Room {
-  id        String   @id @default(cuid())
-  name      String   @unique
+  id        String    @id @default(cuid())
+  name      String    @unique
   capacity  Int
   location  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  sections Section[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sections  Section[]
 
   @@map("rooms")
 }
@@ -135,16 +142,14 @@ model TimeSlot {
 }
 
 model Schedule {
-  id        String   @id @default(cuid())
+  id        String            @id @default(cuid())
   name      String
   status    String
-  version   Int      @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  statusRef ScheduleStatus @relation(fields: [status], references: [name])
+  version   Int               @default(1)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
   versions  ScheduleVersion[]
+  statusRef ScheduleStatus    @relation(fields: [status], references: [name])
 
   @@map("schedules")
 }
@@ -155,12 +160,10 @@ model ScheduleVersion {
   version     Int
   name        String
   description String?
-  changes     Json     // Store change details
-  createdBy   String?   // User ID who made the change
+  changes     Json
+  createdBy   String?
   createdAt   DateTime @default(now())
-
-  // Relations
-  schedule    Schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  schedule    Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@unique([scheduleId, version])
   @@map("schedule_versions")
@@ -171,25 +174,23 @@ model ScheduleStatus {
   description String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-
-  // Relations
-  schedules Schedule[]
+  schedules   Schedule[]
 
   @@map("schedule_statuses")
 }
 
 model Assignment {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   studentId String
   sectionId String
   courseId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  student User    @relation(fields: [studentId], references: [id])
-  section Section @relation(fields: [sectionId], references: [id])
-  course  Course  @relation(fields: [courseId], references: [id])
+  status    EnrollmentStatus @default(ENROLLED)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  course    Course          @relation(fields: [courseId], references: [id])
+  section   Section         @relation(fields: [sectionId], references: [id])
+  student   User            @relation(fields: [studentId], references: [id])
+  grade     Grade?
 
   @@unique([studentId, sectionId])
   @@map("assignments")
@@ -202,9 +203,7 @@ model Preference {
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@map("preferences")
 }
@@ -216,9 +215,7 @@ model Feedback {
   rating    Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@map("feedback")
 }
@@ -231,9 +228,7 @@ model Notification {
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@map("notifications")
 }
@@ -243,29 +238,303 @@ model Level {
   name      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  courses Course[]
+  courses   Course[]
 
   @@map("levels")
+}
+
+model SecurityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  resource   String
+  actionType String
+  ip         String
+  userAgent  String
+  details    Json
+  timestamp  DateTime @default(now())
+
+  @@map("security_logs")
 }
 
 enum UserRole {
   STUDENT
   FACULTY
   COMMITTEE
+  ADMIN
 }
 
-model SecurityLog {
-  id        String   @id @default(cuid())
-  userId    String
-  action    String
-  resource  String
-  actionType String
-  ip        String
-  userAgent String
-  details   Json
-  timestamp DateTime @default(now())
+enum AccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
 
-  @@map("security_logs")
+model AccessRequest {
+  id                String               @id @default(cuid())
+  fullName          String
+  email             String
+  desiredRole       UserRole
+  majorId           String?
+  major             Major?                @relation(fields: [majorId], references: [id])
+  reason            String?
+  status            AccessRequestStatus  @default(PENDING)
+  decisionNote      String?
+  reviewerId        String?
+  reviewer          User?                @relation("AccessRequestReviewer", fields: [reviewerId], references: [id])
+  decisionAt        DateTime?
+  submittedIp       String?
+  submittedUserAgent String?
+  lockedBy          String?              // Committee member ID who is currently reviewing
+  lockedAt          DateTime?            // When the request was locked
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@map("access_requests")
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([lockedBy])
+}
+
+model Major {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  code        String          @unique
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  users       User[]
+  accessRequests AccessRequest[]
+  academicPlans AcademicPlan[]
+
+  @@map("majors")
+}
+
+// Academic Plan System Models
+
+model AcademicPlan {
+  id          String   @id @default(cuid())
+  majorId     String
+  name        String
+  description String?
+  totalCredits Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  major       Major    @relation(fields: [majorId], references: [id], onDelete: Cascade)
+  courses     CourseInPlan[]
+  studentProgress StudentProgress[]
+
+  @@map("academic_plans")
+}
+
+model CourseInPlan {
+  id            String   @id @default(cuid())
+  planId        String
+  courseId      String
+  semester      Int      // 1-8
+  isRequired    Boolean  @default(true)
+  displayOrder  Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  plan          AcademicPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  course        Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, courseId])
+  @@map("course_in_plans")
+}
+
+model Prerequisite {
+  id          String   @id @default(cuid())
+  courseId    String
+  prerequisiteCourseId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course      Course   @relation("PrerequisiteCourse", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisiteCourse Course @relation("PrerequisiteFor", fields: [prerequisiteCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, prerequisiteCourseId])
+  @@map("prerequisites")
+}
+
+model Corequisite {
+  id          String   @id @default(cuid())
+  courseId    String
+  corequisiteCourseId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course      Course   @relation("CorequisiteCourse", fields: [courseId], references: [id], onDelete: Cascade)
+  corequisiteCourse Course @relation("CorequisiteFor", fields: [corequisiteCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, corequisiteCourseId])
+  @@map("corequisites")
+}
+
+model ElectiveGroup {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  minCredits  Int
+  maxCredits  Int?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courses     Course[]
+
+  @@map("elective_groups")
+}
+
+model Semester {
+  id          String   @id @default(cuid())
+  academicYear String  // e.g., "2025/2026"
+  semesterNumber Int   // 1 or 2
+  name        String   @unique // e.g., "2025/2026 Semester 1"
+  isCurrent   Boolean  @default(false)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  registrationWindows RegistrationWindow[]
+  registeredStudents User[] @relation("StudentRegistration")
+  sections Section[]
+  courseFaculty CourseFaculty[]
+
+  @@unique([academicYear, semesterNumber])
+  @@map("semesters")
+}
+
+// Course-Faculty Assignment: Tracks which faculty can teach which courses in which semester
+model CourseFaculty {
+  id         String   @id @default(cuid())
+  courseId   String
+  facultyId  String
+  semesterId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  faculty    User     @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  semester   Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, facultyId, semesterId])
+  @@map("course_faculty")
+}
+
+model RegistrationWindow {
+  id          String   @id @default(cuid())
+  semesterId  String
+  startDate   DateTime
+  endDate     DateTime
+  isOpen      Boolean  @default(false)
+  allowAddDrop Boolean @default(true)
+  maxRoomCapacity Int  @default(40)
+  maxStudentCapacity Int @default(30)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  semester    Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+
+  @@map("registration_windows")
+}
+
+model Grade {
+  id          String   @id @default(cuid())
+  assignmentId String  @unique
+  studentId   String
+  courseId    String
+  numericGrade Int     // 0-100
+  letterGrade String?
+  points      Float?
+  semester    Int
+  academicYear String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignment  Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student     User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([courseId])
+  @@index([semester])
+  @@map("grades")
+}
+
+model StudentProgress {
+  id          String   @id @default(cuid())
+  studentId   String
+  planId      String
+  courseId    String
+  status      CourseStatus @default(NOT_TAKEN)
+  semesterTaken Int?
+  gradeId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student     User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  plan        AcademicPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@index([planId])
+  @@map("student_progress")
+}
+
+enum CourseType {
+  REQUIRED
+  UNIVERSITY_ELECTIVE
+  MATH_ELECTIVE
+  SCIENCE_ELECTIVE
+  DEPT_ELECTIVE
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  DROPPED
+  COMPLETED
+  FAILED
+}
+
+enum CourseStatus {
+  NOT_TAKEN
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+model EmailOTP {
+  id          String   @id @default(cuid())
+  email       String
+  codeHash   String   // Hashed OTP code
+  expiresAt  DateTime
+  attempts   Int      @default(0)
+  verified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("email_otps")
+  @@index([email])
+  @@index([expiresAt])
+}
+
+model PasswordRequirement {
+  id                        String   @id @default(cuid())
+  minLength                 Int      @default(8)
+  requireUppercase          Boolean  @default(true)
+  requireLowercase          Boolean  @default(true)
+  requireNumbers            Boolean  @default(true)
+  requireSpecialChars       Boolean  @default(false)
+  updatedAt                 DateTime @updatedAt
+  updatedBy                 String?  // User ID who last updated
+
+  @@map("password_requirements")
 }

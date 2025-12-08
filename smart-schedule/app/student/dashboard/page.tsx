@@ -57,6 +57,9 @@ export default function StudentDashboard() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [gpa, setGpa] = useState<{ cumulative: number; totalCredits: number } | null>(null)
+  const [gpaLoading, setGpaLoading] = useState(true)
+  const [currentSemester, setCurrentSemester] = useState<{ name: string; academicYear: string; semesterNumber: number } | null>(null)
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday']
   const timeSlots = [
     '08:00-08:50',
@@ -81,10 +84,28 @@ export default function StudentDashboard() {
       try {
         setLoading(true)
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
-        const response = await fetch(`${API_BASE_URL}/students/me/enrollments`, {
-          credentials: 'include'
-        })
-        const data = await response.json()
+        
+        let response
+        try {
+          response = await fetch(`${API_BASE_URL}/students/me/enrollments`, {
+            credentials: 'include'
+          })
+        } catch (fetchError) {
+          console.error('Network error loading enrollments:', fetchError)
+          setErrorMessage('Unable to connect to server. Please check your connection.')
+          setEnrollments([])
+          return
+        }
+
+        let data
+        try {
+          data = await response.json()
+        } catch (jsonError) {
+          console.error('Error parsing enrollment response:', jsonError)
+          setErrorMessage('Invalid response from server.')
+          setEnrollments([])
+          return
+        }
 
         if (!response.ok) {
           const errorMsg = data.error || data.message || 'Failed to load enrolled courses.'
@@ -116,6 +137,77 @@ export default function StudentDashboard() {
     }
   }, [authState.isLoading, user?.id])
 
+  useEffect(() => {
+    const loadGPA = async () => {
+      if (!user?.id) {
+        setGpaLoading(false)
+        return
+      }
+
+      try {
+        setGpaLoading(true)
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        
+        // Get current semester for display
+        try {
+          const semesterRes = await fetch(`${API_BASE_URL}/semesters/current`, {
+            credentials: 'include'
+          })
+          
+          if (semesterRes.ok) {
+            const semesterData = await semesterRes.json()
+            if (semesterData.success && semesterData.data) {
+              const currentSem = semesterData.data
+              // Set current semester for display
+              setCurrentSemester({
+                name: `${currentSem.academicYear} - Semester ${currentSem.semesterNumber}`,
+                academicYear: currentSem.academicYear,
+                semesterNumber: currentSem.semesterNumber
+              })
+            } else {
+              setCurrentSemester(null)
+            }
+          } else {
+            setCurrentSemester(null)
+          }
+        } catch (semesterError) {
+          console.error('Error checking semester status:', semesterError)
+          setCurrentSemester(null)
+        }
+
+        // Always load GPA (same as transcript page)
+        try {
+          const gradesRes = await fetch(`${API_BASE_URL}/grades/student/${user.id}`, {
+            credentials: 'include'
+          })
+          
+          if (gradesRes.ok) {
+            const data = await gradesRes.json()
+            if (data.success && data.data?.gpa) {
+              setGpa(data.data.gpa)
+            } else {
+              setGpa(null)
+            }
+          } else {
+            setGpa(null)
+          }
+        } catch (gradesError) {
+          console.error('Error loading grades:', gradesError)
+          setGpa(null)
+        }
+      } catch (error) {
+        console.error('Error loading GPA:', error)
+        setGpa(null)
+      } finally {
+        setGpaLoading(false)
+      }
+    }
+
+    if (!authState.isLoading) {
+      loadGPA()
+    }
+  }, [authState.isLoading, user?.id])
+
   const totalCredits = useMemo(() => {
     return enrollments.reduce((sum, enrollment) => {
       const credits = enrollment.section.course.credits || 0
@@ -127,21 +219,68 @@ export default function StudentDashboard() {
     return enrollments.slice(0, 3)
   }, [enrollments])
 
+  // Helper function to normalize time format (8:00 -> 08:00)
+  const normalizeTime = (time: string): string => {
+    const parts = time.trim().split(':')
+    const hours = parts[0].padStart(2, '0')
+    const minutes = parts[1] || '00'
+    return `${hours}:${minutes}`
+  }
+
   const scheduleCells = useMemo(() => {
     return enrollments.flatMap(enrollment =>
-      (enrollment.section.meetings || []).map(meeting => ({
-        day: meeting.dayOfWeek,
-        time: `${meeting.startTime}-${meeting.endTime}`,
-        course: enrollment.section.course.code,
-        courseName: enrollment.section.course.name,
-        room: enrollment.section.room?.name || 'TBD',
-        instructor: enrollment.section.instructor?.name || 'TBD'
-      }))
+      (enrollment.section.meetings || []).map(meeting => {
+        const normalizedStart = normalizeTime(meeting.startTime)
+        const normalizedEnd = normalizeTime(meeting.endTime)
+        return {
+          day: meeting.dayOfWeek,
+          time: `${normalizedStart}-${normalizedEnd}`,
+          rawStart: normalizedStart,
+          rawEnd: normalizedEnd,
+          course: enrollment.section.course.code,
+          courseName: enrollment.section.course.name,
+          room: enrollment.section.room?.name || 'TBD',
+          instructor: enrollment.section.instructor?.name || 'TBD'
+        }
+      })
     )
   }, [enrollments])
 
-  const getScheduleForDayAndTime = (day: string, time: string) =>
-    scheduleCells.find(cell => cell.day === day && cell.time === time)
+  const getScheduleForDayAndTime = (day: string, time: string) => {
+    // Normalize the time slot format
+    const [slotStartStr, slotEndStr] = time.split('-')
+    const normalizedSlotStart = normalizeTime(slotStartStr)
+    const normalizedSlotEnd = normalizeTime(slotEndStr)
+    const normalizedTime = `${normalizedSlotStart}-${normalizedSlotEnd}`
+    
+    // Try exact match first (with normalized times)
+    let match = scheduleCells.find(entry => {
+      return entry.day === day && entry.time === normalizedTime
+    })
+    
+    // If no exact match, try to find meetings that overlap with this time slot
+    if (!match) {
+      const [slotStart, slotEnd] = normalizedTime.split('-').map(t => {
+        const [hours, minutes] = t.split(':').map(Number)
+        return hours * 60 + minutes
+      })
+      
+      match = scheduleCells.find(entry => {
+        if (entry.day !== day) return false
+        
+        // Use the raw start/end times that are already normalized
+        const meetingStart = entry.rawStart.split(':').map(Number)
+        const meetingEnd = entry.rawEnd.split(':').map(Number)
+        const meetingStartMinutes = meetingStart[0] * 60 + meetingStart[1]
+        const meetingEndMinutes = meetingEnd[0] * 60 + meetingEnd[1]
+        
+        // Check if meeting overlaps with time slot (meeting starts before slot ends and ends after slot starts)
+        return (meetingStartMinutes < slotEnd && meetingEndMinutes > slotStart)
+      })
+    }
+    
+    return match
+  }
 
   return (
     <ProtectedRoute requiredRole="student">
@@ -163,7 +302,19 @@ export default function StudentDashboard() {
               </div>
               <div className="flex items-center space-x-2">
                 <span className="font-medium">Major:</span>
-                <span>Computer Science</span>
+                <span>{user?.major?.name || 'Not assigned'}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="font-medium">Registered Semester:</span>
+                <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-semibold">
+                  {user?.registrationSemester?.name || 'Not set'}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="font-medium">Current Semester:</span>
+                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-semibold">
+                  {currentSemester?.name || 'Not set'}
+                </span>
               </div>
             </div>
           </div>
@@ -182,23 +333,35 @@ export default function StudentDashboard() {
               </div>
               <div className="flex gap-3">
                 <Link
+                  href="/student/academic-plan"
+                  className="inline-flex items-center px-5 py-3 bg-white/20 border border-white/20 rounded-xl backdrop-blur text-sm font-semibold hover:bg-white/30 transition-colors"
+                >
+                  View Academic Plan
+                </Link>
+                <Link
                   href="/student/schedule"
                   className="inline-flex items-center px-5 py-3 bg-white/20 border border-white/20 rounded-xl backdrop-blur text-sm font-semibold hover:bg-white/30 transition-colors"
                 >
                   View Full Schedule
                 </Link>
                 <Link
-                  href="/student/preferences"
+                  href="/student/grades"
                   className="inline-flex items-center px-5 py-3 bg-white text-blue-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors"
                 >
-                  Update Preferences
+                  Course Result
+                </Link>
+                <Link
+                  href="/student/transcript"
+                  className="inline-flex items-center px-5 py-3 bg-white/20 border border-white/20 rounded-xl backdrop-blur text-sm font-semibold hover:bg-white/30 transition-colors"
+                >
+                  Transcript
                 </Link>
               </div>
             </div>
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
               <div className="bg-slate-50 rounded-2xl p-3">{summaryIcons.courses}</div>
               <div>
@@ -213,6 +376,22 @@ export default function StudentDashboard() {
                 <p className="text-sm text-slate-500">Credits</p>
                 <p className="text-3xl font-bold text-slate-900">{totalCredits}</p>
                 <p className="text-xs text-slate-400">Earned from enrollments</p>
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+              <div className="bg-slate-50 rounded-2xl p-3">
+                <svg className="w-10 h-10 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Cumulative GPA</p>
+                <p className="text-3xl font-bold text-slate-900">
+                  {gpaLoading ? '...' : gpa ? gpa.cumulative.toFixed(2) : 'N/A'}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {gpaLoading ? 'Loading...' : gpa ? `${gpa.totalCredits} credits` : 'No grades yet'}
+                </p>
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">

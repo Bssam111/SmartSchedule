@@ -54,8 +54,8 @@ jobs:
       - name: Build and push backend
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
+          context: .
+          file: ./backend/Dockerfile.prod
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -99,13 +99,16 @@ jobs:
       - name: Build and push frontend
         uses: docker/build-push-action@v5
         with:
-          context: ./smart-schedule
-          file: ./smart-schedule/Dockerfile
+          context: .
+          file: ./smart-schedule/Dockerfile.prod
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL || 'https://smartschedule24.com/api' }}
+            NEXT_PUBLIC_EXTERNAL_API_URL=${{ secrets.NEXT_PUBLIC_EXTERNAL_API_URL || 'https://smartschedule24.com' }}
 
   # ===== Integration Test =====
   integration-test:

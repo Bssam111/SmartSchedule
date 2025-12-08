@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { validatePasswordStrength, validateAndNormalizeEmail } from '@/middleware/security'
+import { validateAndNormalizeEmail } from '@/middleware/security'
 
 // Enhanced user validation schemas with security measures
 export const loginSchema = z.object({
@@ -131,7 +131,9 @@ export const createSectionSchema = z.object({
   meetings: z.array(timeSlotSchema).min(1, 'At least one meeting is required')
 })
 
-export const updateSectionSchema = createSectionSchema.partial()
+export const updateSectionSchema = createSectionSchema.partial().extend({
+  instructorId: z.string().min(1, 'Instructor ID is required').nullable().optional()
+})
 
 // Enhanced room validation schemas
 export const createRoomSchema = z.object({
@@ -225,21 +227,72 @@ export const createNotificationSchema = z.object({
 
 export const updateNotificationSchema = createNotificationSchema.partial()
 
+export const accessRequestSubmissionSchema = z.object({
+  fullName: z.string()
+    .min(2, 'Full name must be at least 2 characters')
+    .max(150, 'Full name is too long')
+    .regex(/^[a-zA-Z\s\-'.]+$/, 'Name contains invalid characters'),
+  email: z.string()
+    .email('Invalid email address')
+    .transform((value) => value.trim().toLowerCase()),
+  desiredRole: z.enum(['STUDENT']),
+  majorId: z.string()
+    .min(1, 'Major is required')
+    .optional(),
+  reason: z.string()
+    .max(1000, 'Reason must be 1000 characters or fewer')
+    .optional()
+})
+
+export const accessRequestListQuerySchema = z.object({
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+  search: z.string()
+    .min(1, 'Search term must be at least 1 character')
+    .max(200, 'Search term too long')
+    .optional(),
+  page: z.coerce.number().int().min(1, 'Page must be at least 1').default(1),
+  pageSize: z.coerce.number().int().min(1, 'Page size must be at least 1').max(100, 'Page size cannot exceed 100').default(20)
+})
+
+export const accessRequestStatusSchema = z.object({
+  email: z.string()
+    .email('Invalid email address')
+    .transform((value) => value.trim().toLowerCase()),
+  requestId: z.string()
+    .min(10, 'Request reference looks invalid')
+    .max(32, 'Request reference looks invalid')
+})
+
+export const accessRequestApprovalSchema = z.object({
+  temporaryPassword: z.string()
+    .min(12, 'Temporary password must be at least 12 characters')
+    .max(128, 'Temporary password is too long')
+    .regex(/[A-Z]/, 'Temporary password must include an uppercase letter')
+    .regex(/[a-z]/, 'Temporary password must include a lowercase letter')
+    .regex(/\d/, 'Temporary password must include a number')
+    .regex(/[!@#$%&*]/, 'Temporary password must include a symbol')
+    .optional(),
+  decisionNote: z.string()
+    .max(500, 'Decision note must be 500 characters or fewer')
+    .optional()
+})
+
+export const accessRequestRejectionSchema = z.object({
+  decisionNote: z.string()
+    .max(500, 'Decision note must be 500 characters or fewer')
+    .optional()
+})
+
 // Security-focused validation schemas
+// Note: Password validation is done dynamically using password-requirements from database
+// This schema only validates basic structure, not password strength
 export const passwordChangeSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
+  currentPassword: z.string().min(1, 'Current password is required').optional(),
   newPassword: z.string()
-    .min(12, 'Password must be at least 12 characters')
-    .max(128, 'Password too long')
-    .refine((password) => {
-      const { isValid, errors } = validatePasswordStrength(password)
-      if (!isValid) {
-        throw new z.ZodError([{ code: 'custom', message: errors.join(', '), path: ['newPassword'] }])
-      }
-      return true
-    }),
-  confirmPassword: z.string().min(1, 'Password confirmation is required')
-}).refine((data) => data.newPassword === data.confirmPassword, {
+    .min(1, 'Password is required')
+    .max(128, 'Password too long'),
+  confirmPassword: z.string().min(1, 'Password confirmation is required').optional()
+}).refine((data) => data.newPassword === (data.confirmPassword || data.newPassword), {
   message: 'Passwords do not match',
   path: ['confirmPassword']
 })

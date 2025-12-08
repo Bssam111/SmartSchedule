@@ -68,3 +68,4 @@ If you have other files that directly use `NEXT_PUBLIC_API_URL` with fetch calls
 - `app/faculty/dashboard/page.tsx`
 - Other pages that make direct API calls
 
+

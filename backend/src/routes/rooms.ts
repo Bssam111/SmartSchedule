@@ -48,3 +48,5 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res, next) => {
 export { router as roomRoutes }
 
 
+
+

@@ -1,592 +1,453 @@
 # SmartSchedule Deployment Guide
 
-Complete guide for deploying SmartSchedule to production at `smartschedule24.com`.
+This guide covers deploying SmartSchedule to production using Docker and various deployment platforms.
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Prerequisites](#prerequisites)
-3. [Deployment Options](#deployment-options)
-4. [Option 1: VPS Deployment (DigitalOcean, AWS EC2, etc.)](#option-1-vps-deployment)
-5. [Option 2: Platform as a Service (Railway, Render, etc.)](#option-2-platform-as-a-service)
-6. [DNS Configuration](#dns-configuration)
-7. [SSL Certificate Setup](#ssl-certificate-setup)
-8. [Production Deployment Steps](#production-deployment-steps)
-9. [Monitoring & Maintenance](#monitoring--maintenance)
-10. [Troubleshooting](#troubleshooting)
-
----
-
-## Overview
-
-SmartSchedule consists of:
-- **Frontend**: Next.js 15 application (port 3000)
-- **Backend**: Express/TypeScript API (port 3001)
-- **Database**: PostgreSQL
-- **Cache**: Redis (for rate limiting & sessions)
-- **Reverse Proxy**: Nginx (HTTPS termination)
-
-Your domain `smartschedule24.com` is registered with GoDaddy, but you'll need to host the application on a cloud provider.
-
----
+1. [Prerequisites](#prerequisites)
+2. [Environment Variables](#environment-variables)
+3. [Docker Deployment](#docker-deployment)
+4. [Platform-Specific Deployment](#platform-specific-deployment)
+5. [Post-Deployment Verification](#post-deployment-verification)
+6. [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
-- Domain name: `smartschedule24.com` (GoDaddy)
-- Cloud hosting account (choose one):
-  - **VPS**: DigitalOcean ($6-12/month), Linode, Vultr
-  - **PaaS**: Railway (~$5-20/month), Render (free tier available)
-  - **Cloud**: AWS EC2, Google Cloud Run, Azure
-- Basic command-line knowledge
-- SSH access to your server (for VPS option)
+- Docker and Docker Compose installed
+- PostgreSQL database (local or managed)
+- Redis (optional, for rate limiting and sessions)
+- Domain name and SSL certificates (for production)
+- Environment variables configured
 
----
+## Environment Variables
 
-## Deployment Options
+### Backend Environment Variables
 
-### Quick Comparison
-
-| Option | Cost | Complexity | Best For |
-|--------|------|------------|----------|
-| **VPS (DigitalOcean)** | $6-12/month | Medium | Full control, production |
-| **Railway** | $5-20/month | Low | Quick deployment |
-| **Render** | Free-$7/month | Low | Cost-effective start |
-| **AWS EC2** | $10-30/month | High | Enterprise needs |
-
----
-
-## Option 1: VPS Deployment
-
-Recommended for production with full control. Steps below use DigitalOcean as an example.
-
-### Step 1: Create VPS Droplet
-
-1. Sign up at [DigitalOcean](https://www.digitalocean.com)
-2. Create a new Droplet:
-   - **OS**: Ubuntu 22.04 LTS
-   - **Plan**: Basic ($12/month, 2GB RAM minimum)
-   - **Region**: Choose closest to your users
-   - **Authentication**: SSH keys (recommended) or password
-
-### Step 2: Initial Server Setup
-
-SSH into your server:
+Create `backend/.env` or set these in your deployment platform:
 
 ```bash
-ssh root@YOUR_SERVER_IP
+# Database
+DATABASE_URL=postgresql://user:password@host:5432/database?schema=public
+
+# JWT Configuration
+JWT_SECRET=your-very-long-random-secret-minimum-32-characters
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
+
+# Application
+PORT=3001
+NODE_ENV=production
+FRONTEND_URL=https://yourdomain.com
+ALLOWED_ORIGINS=https://yourdomain.com
+
+# Redis (optional)
+REDIS_URL=redis://redis:6379
+
+# WebAuthn
+RP_ID=yourdomain.com
+RP_ORIGIN=https://yourdomain.com
+
+# Logging
+LOG_LEVEL=info
 ```
 
-Update system and install Docker:
+### Frontend Environment Variables
+
+Create `smart-schedule/.env.local` or set these in your deployment platform:
 
 ```bash
-# Update system
-apt update && apt upgrade -y
+# API Configuration
+NEXT_PUBLIC_API_URL=https://yourdomain.com/api
+NEXT_PUBLIC_EXTERNAL_API_URL=https://yourdomain.com
 
-# Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
-
-# Install Docker Compose
-apt install docker-compose-plugin -y
-
-# Verify installation
-docker --version
-docker compose version
-
-# Add non-root user (optional but recommended)
-adduser deploy
-usermod -aG docker deploy
-usermod -aG sudo deploy
+# Application
+NODE_ENV=production
+PORT=3000
 ```
 
-### Step 3: Clone Repository
+### Production Docker Compose Environment
+
+Create `.env.production` in the project root:
 
 ```bash
-# Install Git
-apt install git -y
+# Database
+POSTGRES_USER=smartschedule
+POSTGRES_PASSWORD=your-strong-password
+POSTGRES_DB=smartschedule_prod
 
-# Clone your repository
-cd /opt
-git clone https://github.com/YOUR_USERNAME/SmartSchedule.git
-cd SmartSchedule
+# Backend
+JWT_SECRET=your-very-long-random-secret-minimum-32-characters
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
 
-# Or upload files via SCP/SFTP
+# Application URLs
+FRONTEND_URL=https://yourdomain.com
+NEXT_PUBLIC_API_URL=https://yourdomain.com/api
+NEXT_PUBLIC_EXTERNAL_API_URL=https://yourdomain.com
+
+# Redis
+REDIS_PASSWORD=your-redis-password
+
+# WebAuthn
+RP_ID=yourdomain.com
+RP_ORIGIN=https://yourdomain.com
+
+# Logging
+LOG_LEVEL=info
 ```
 
-### Step 4: Configure Environment Variables
+## Docker Deployment
+
+### Production Build
+
+1. **Build production images:**
 
 ```bash
-# Copy example file
-cp .env.production.example .env.production
+# Build backend
+docker build -f backend/Dockerfile.prod -t smartschedule-backend:latest ./backend
 
-# Edit with secure values
+# Build frontend
+docker build -f smart-schedule/Dockerfile.prod \
+  --build-arg NEXT_PUBLIC_API_URL=https://yourdomain.com/api \
+  --build-arg NEXT_PUBLIC_EXTERNAL_API_URL=https://yourdomain.com \
+  -t smartschedule-frontend:latest ./smart-schedule
+```
+
+2. **Start services with Docker Compose:**
+
+```bash
+# Copy environment template
+cp env.production.template .env.production
+
+# Edit .env.production with your values
 nano .env.production
-```
 
-**Critical values to change:**
-- `POSTGRES_PASSWORD`: Generate strong password (32+ characters)
-- `JWT_SECRET`: Generate random string (at least 32 characters)
-- `REDIS_PASSWORD`: Generate strong password
-
-Generate secure passwords:
-
-```bash
-# Generate random passwords
-openssl rand -base64 32  # For JWT_SECRET
-openssl rand -base64 32  # For POSTGRES_PASSWORD
-openssl rand -base64 32  # For REDIS_PASSWORD
-```
-
-### Step 5: Configure DNS (GoDaddy)
-
-1. Log into [GoDaddy](https://www.godaddy.com)
-2. Go to **My Products** → **Domains** → `smartschedule24.com`
-3. Click **DNS** or **Manage DNS**
-4. Update DNS records:
-
-```
-Type    Name    Value              TTL
-A       @       YOUR_SERVER_IP     600
-A       www     YOUR_SERVER_IP     600
-```
-
-**Example:**
-- If your server IP is `123.45.67.89`, set:
-  - A record `@` → `123.45.67.89`
-  - A record `www` → `123.45.67.89`
-
-5. **Wait 5-30 minutes** for DNS propagation
-
-Verify DNS:
-
-```bash
-dig smartschedule24.com
-# or
-nslookup smartschedule24.com
-```
-
-### Step 6: Setup SSL Certificate (Let's Encrypt)
-
-Before starting containers, obtain SSL certificate:
-
-```bash
-# Install Certbot
-apt install certbot -y
-
-# Stop nginx if running
-docker compose -f docker-compose.prod.yml down
-
-# Obtain certificate (replace with your email)
-certbot certonly --standalone -d smartschedule24.com -d www.smartschedule24.com --email your-email@example.com --agree-tos --non-interactive
-
-# Certificates will be in:
-# /etc/letsencrypt/live/smartschedule24.com/fullchain.pem
-# /etc/letsencrypt/live/smartschedule24.com/privkey.pem
-
-# Copy certificates to nginx/ssl
-cp /etc/letsencrypt/live/smartschedule24.com/fullchain.pem nginx/ssl/
-cp /etc/letsencrypt/live/smartschedule24.com/privkey.pem nginx/ssl/
-
-# Set proper permissions
-chmod 644 nginx/ssl/fullchain.pem
-chmod 600 nginx/ssl/privkey.pem
-```
-
-**Auto-renewal setup:**
-
-```bash
-# Create renewal script
-cat > /etc/cron.monthly/renew-ssl.sh << 'EOF'
-#!/bin/bash
-certbot renew --quiet --deploy-hook "docker compose -f /opt/SmartSchedule/docker-compose.prod.yml restart nginx"
-EOF
-
-chmod +x /etc/cron.monthly/renew-ssl.sh
-```
-
-### Step 7: Build and Start Services
-
-```bash
-cd /opt/SmartSchedule
-
-# Build images
-docker compose -f docker-compose.prod.yml build
-
-# Start services
-docker compose -f docker-compose.prod.yml up -d
-
-# Check status
-docker compose -f docker-compose.prod.yml ps
+# Start all services
+docker-compose -f docker-compose.prod.yml up -d
 
 # View logs
-docker compose -f docker-compose.prod.yml logs -f
+docker-compose -f docker-compose.prod.yml logs -f
 ```
 
-### Step 8: Run Database Migrations
+### Service Architecture
 
-```bash
-# Run migrations
-docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
+The production setup includes:
 
-# (Optional) Seed initial data
-docker compose -f docker-compose.prod.yml exec backend npm run db:seed
-```
-
-### Step 9: Verify Deployment
-
-1. Visit `https://smartschedule24.com`
-2. Check API health: `https://smartschedule24.com/api/health`
-3. Test login functionality
-
----
-
-## Option 2: Platform as a Service
-
-Easier deployment with less server management.
-
-### Railway
-
-1. Sign up at [Railway](https://railway.app)
-2. Create new project → **Deploy from GitHub**
-3. Configure services:
-   - **Backend**: Point to `backend/` directory
-   - **Frontend**: Point to `smart-schedule/` directory
-   - **Database**: Add PostgreSQL service
-   - **Redis**: Add Redis service
-4. Set environment variables (from `.env.production.example`)
-5. Railway automatically handles:
-   - SSL certificates
-   - Domain configuration
-   - Scaling
-
-### Render
-
-1. Sign up at [Render](https://render.com)
-2. Create **Web Service** for backend
-3. Create **Web Service** for frontend
-4. Create **PostgreSQL** database
-5. Create **Redis** instance
-6. Configure environment variables
-7. Connect custom domain in Render dashboard
-
-**Note**: Render requires updating Nginx config or using their reverse proxy.
-
----
-
-## DNS Configuration
-
-### GoDaddy DNS Settings
-
-1. **Log into GoDaddy**
-   - Go to [godaddy.com](https://www.godaddy.com)
-   - Click **My Products** → **Domains**
-   - Click `smartschedule24.com` → **DNS** or **Manage DNS**
-
-2. **Add/Update A Records**
-
-   For VPS deployment:
-   ```
-   Type: A
-   Name: @
-   Value: YOUR_SERVER_IP
-   TTL: 600 (10 minutes)
-   
-   Type: A
-   Name: www
-   Value: YOUR_SERVER_IP
-   TTL: 600
-   ```
-
-   For PaaS (if they provide IP):
-   ```
-   Type: A
-   Name: @
-   Value: PAAS_PROVIDED_IP
-   TTL: 600
-   ```
-
-   Or use CNAME for subdomain routing (PaaS often provides):
-   ```
-   Type: CNAME
-   Name: @
-   Value: YOUR_PAAS_HOSTNAME
-   TTL: 600
-   ```
-
-3. **Save Changes**
-   - Click **Save** or **Add Record**
-   - Wait 5-30 minutes for DNS propagation
-
-4. **Verify DNS Propagation**
-   ```bash
-   # Check from your computer
-   nslookup smartschedule24.com
-   dig smartschedule24.com
-   
-   # Or use online tools
-   # https://www.whatsmydns.net
-   ```
-
----
-
-## SSL Certificate Setup
-
-### Automatic (Let's Encrypt with Certbot)
-
-For VPS deployments, use Certbot (recommended):
-
-```bash
-# Install Certbot
-apt install certbot python3-certbot-nginx -y
-
-# Obtain certificate
-certbot certonly --standalone \
-  -d smartschedule24.com \
-  -d www.smartschedule24.com \
-  --email your-email@example.com \
-  --agree-tos \
-  --non-interactive
-
-# Copy certificates
-cp /etc/letsencrypt/live/smartschedule24.com/fullchain.pem nginx/ssl/
-cp /etc/letsencrypt/live/smartschedule24.com/privkey.pem nginx/ssl/
-```
-
-### Manual Certificate Upload
-
-If you have certificates from another provider:
-
-1. Place certificates in `nginx/ssl/`:
-   - `fullchain.pem` (certificate chain)
-   - `privkey.pem` (private key)
-
-2. Update permissions:
-   ```bash
-   chmod 644 nginx/ssl/fullchain.pem
-   chmod 600 nginx/ssl/privkey.pem
-   ```
-
-3. Restart Nginx:
-   ```bash
-   docker compose -f docker-compose.prod.yml restart nginx
-   ```
-
----
-
-## Production Deployment Steps
-
-### Quick Start Checklist
-
-- [ ] Choose hosting provider (VPS or PaaS)
-- [ ] Set up server/hosting account
-- [ ] Clone repository or upload code
-- [ ] Configure `.env.production` with secure values
-- [ ] Configure DNS records in GoDaddy
-- [ ] Obtain SSL certificate
-- [ ] Build and start Docker containers
-- [ ] Run database migrations
-- [ ] Verify deployment
-- [ ] Set up monitoring and backups
-
-### Detailed Commands
-
-```bash
-# 1. Navigate to project
-cd /opt/SmartSchedule
-
-# 2. Configure environment
-cp .env.production.example .env.production
-nano .env.production  # Edit with secure values
-
-# 3. Build images
-docker compose -f docker-compose.prod.yml build --no-cache
-
-# 4. Start services
-docker compose -f docker-compose.prod.yml up -d
-
-# 5. Check logs
-docker compose -f docker-compose.prod.yml logs -f
-
-# 6. Run migrations
-docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
-
-# 7. Check service health
-curl https://smartschedule24.com/api/health
-```
-
----
-
-## Monitoring & Maintenance
+- **PostgreSQL**: Database service
+- **Redis**: Caching and rate limiting
+- **Backend**: Express API server (port 3001)
+- **Frontend**: Next.js application (port 3000)
+- **Nginx**: Reverse proxy and SSL termination (ports 80, 443)
 
 ### Health Checks
 
-```bash
-# Check all containers
-docker compose -f docker-compose.prod.yml ps
-
-# Check logs
-docker compose -f docker-compose.prod.yml logs --tail=100
-
-# Check backend health
-curl https://smartschedule24.com/api/health
-```
-
-### Backup Database
+Verify services are running:
 
 ```bash
-# Create backup script
-cat > /opt/SmartSchedule/backup.sh << 'EOF'
-#!/bin/bash
-BACKUP_DIR="/opt/backups"
-mkdir -p $BACKUP_DIR
-DATE=$(date +%Y%m%d_%H%M%S)
+# Backend health
+curl http://localhost:3001/api/health
 
-docker compose -f /opt/SmartSchedule/docker-compose.prod.yml exec -T database \
-  pg_dump -U smartschedule smartschedule_prod | gzip > "$BACKUP_DIR/db_backup_$DATE.sql.gz"
+# Frontend health
+curl http://localhost:3000
 
-# Keep only last 7 days
-find $BACKUP_DIR -name "db_backup_*.sql.gz" -mtime +7 -delete
-EOF
-
-chmod +x /opt/SmartSchedule/backup.sh
-
-# Add to crontab (daily at 2 AM)
-(crontab -l 2>/dev/null; echo "0 2 * * * /opt/SmartSchedule/backup.sh") | crontab -
+# Through Nginx
+curl https://yourdomain.com/api/health
 ```
 
-### Update Application
+## Platform-Specific Deployment
+
+### Railway
+
+Railway automatically detects Dockerfiles and deploys services. Configuration is in `railway.toml` files.
+
+1. **Connect GitHub repository** to Railway
+2. **Create services:**
+   - Backend service (uses `backend/Dockerfile.prod`)
+   - Frontend service (uses `smart-schedule/Dockerfile.prod`)
+   - PostgreSQL database service
+   - Redis service (optional)
+
+3. **Set environment variables** in Railway dashboard for each service
+
+4. **Deploy:** Railway automatically deploys on push to main branch
+
+### Vercel (Frontend Only)
+
+For Next.js frontend on Vercel:
+
+1. Connect GitHub repository
+2. Set root directory to `smart-schedule`
+3. Configure environment variables
+4. Deploy
+
+**Note:** Backend must be deployed separately (Railway, Heroku, etc.)
+
+### Heroku
+
+1. **Install Heroku CLI**
+
+2. **Create apps:**
+```bash
+heroku create smartschedule-backend
+heroku create smartschedule-frontend
+```
+
+3. **Add PostgreSQL:**
+```bash
+heroku addons:create heroku-postgresql:hobby-dev -a smartschedule-backend
+```
+
+4. **Set environment variables:**
+```bash
+heroku config:set JWT_SECRET=your-secret -a smartschedule-backend
+# ... add all required variables
+```
+
+5. **Deploy:**
+```bash
+# Backend
+cd backend
+heroku git:remote -a smartschedule-backend
+git push heroku main
+
+# Frontend
+cd smart-schedule
+heroku git:remote -a smartschedule-frontend
+git push heroku main
+```
+
+### DigitalOcean App Platform
+
+1. **Connect GitHub repository**
+2. **Create apps:**
+   - Backend component (Dockerfile: `backend/Dockerfile.prod`)
+   - Frontend component (Dockerfile: `smart-schedule/Dockerfile.prod`)
+   - Database component (PostgreSQL)
+   - Redis component (optional)
+
+3. **Configure environment variables** in each component
+
+4. **Deploy:** Automatic on push to main branch
+
+### AWS (ECS/EKS)
+
+1. **Build and push images to ECR:**
+```bash
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
+
+docker build -f backend/Dockerfile.prod -t smartschedule-backend ./backend
+docker tag smartschedule-backend:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/smartschedule-backend:latest
+docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/smartschedule-backend:latest
+```
+
+2. **Create ECS task definitions** with environment variables
+
+3. **Deploy services** using ECS or EKS
+
+## Post-Deployment Verification
+
+### 1. Health Checks
 
 ```bash
-cd /opt/SmartSchedule
+# Backend API
+curl https://yourdomain.com/api/health
+# Expected: {"status":"ok","timestamp":"..."}
 
-# Pull latest code
-git pull
-
-# Rebuild and restart
-docker compose -f docker-compose.prod.yml build
-docker compose -f docker-compose.prod.yml up -d
-
-# Run migrations if needed
-docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
+# Frontend
+curl https://yourdomain.com
+# Expected: HTML response
 ```
 
-### Monitor Resources
+### 2. Database Connection
 
 ```bash
-# Check disk usage
-df -h
+# Check backend logs
+docker-compose -f docker-compose.prod.yml logs backend | grep -i database
 
-# Check memory usage
-free -h
-
-# Check Docker resources
-docker stats
-
-# View container logs
-docker compose -f docker-compose.prod.yml logs -f backend
+# Or via Railway/Heroku logs
+railway logs backend
+# or
+heroku logs --tail -a smartschedule-backend
 ```
 
----
+### 3. Authentication Flow
+
+1. Visit `https://yourdomain.com/login`
+2. Attempt to log in with valid credentials
+3. Verify redirect to dashboard
+4. Check browser console for errors
+
+### 4. API Endpoints
+
+```bash
+# Test protected endpoint (requires auth)
+curl -X GET https://yourdomain.com/api/users/me \
+  -H "Cookie: session=your-session-cookie"
+
+# Test public endpoint
+curl https://yourdomain.com/api/health
+```
+
+### 5. Database Migrations
+
+Verify migrations ran successfully:
+
+```bash
+# Check backend logs for migration output
+docker-compose -f docker-compose.prod.yml logs backend | grep -i migration
+
+# Or connect to database and check schema
+psql $DATABASE_URL -c "\dt"
+```
 
 ## Troubleshooting
 
-### Domain Not Resolving
+### Backend Won't Start
 
-```bash
-# Check DNS propagation
-dig smartschedule24.com
-nslookup smartschedule24.com
+**Symptoms:** Container exits immediately or health check fails
 
-# Verify DNS records in GoDaddy are correct
-# Wait up to 48 hours for full propagation
-```
+**Solutions:**
+1. Check logs: `docker-compose logs backend`
+2. Verify `DATABASE_URL` is correct and database is accessible
+3. Ensure `JWT_SECRET` is set and at least 32 characters
+4. Check port conflicts (default: 3001)
 
-### SSL Certificate Issues
+### Frontend Build Fails
 
-```bash
-# Test certificate
-openssl s_client -connect smartschedule24.com:443 -servername smartschedule24.com
+**Symptoms:** Build error during Docker build or deployment
 
-# Renew certificate
-certbot renew
-
-# Check Nginx SSL config
-docker compose -f docker-compose.prod.yml exec nginx nginx -t
-```
+**Solutions:**
+1. Verify `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_EXTERNAL_API_URL` are set
+2. Check for TypeScript errors: `cd smart-schedule && npm run typecheck`
+3. Ensure all dependencies are installed: `npm ci`
 
 ### Database Connection Errors
 
-```bash
-# Check database logs
-docker compose -f docker-compose.prod.yml logs database
+**Symptoms:** `P1001: Can't reach database server`
 
-# Test database connection
-docker compose -f docker-compose.prod.yml exec database psql -U smartschedule -d smartschedule_prod
+**Solutions:**
+1. Verify `DATABASE_URL` format is correct
+2. Check database is running and accessible
+3. For Railway: Ensure using `postgres.railway.internal:5432` for internal connections
+4. For external databases: Verify firewall rules and SSL requirements
 
-# Verify DATABASE_URL in .env.production
-```
+### CORS Errors
 
-### Application Not Starting
+**Symptoms:** Browser console shows CORS errors
 
-```bash
-# Check all logs
-docker compose -f docker-compose.prod.yml logs
+**Solutions:**
+1. Verify `FRONTEND_URL` matches your actual domain
+2. Check `ALLOWED_ORIGINS` includes your domain
+3. Ensure Nginx is forwarding correct headers
 
-# Check specific service
-docker compose -f docker-compose.prod.yml logs backend
-docker compose -f docker-compose.prod.yml logs frontend
+### Session/Cookie Issues
 
-# Verify environment variables
-docker compose -f docker-compose.prod.yml exec backend env | grep DATABASE_URL
-```
+**Symptoms:** Users can't stay logged in
 
-### Port Conflicts
+**Solutions:**
+1. Verify `SESSION_COOKIE_SECURE=true` for HTTPS
+2. Check `SESSION_COOKIE_SAMESITE` setting
+3. Ensure domain matches in cookie settings
+4. Check Redis connection if using Redis sessions
 
-```bash
-# Check what's using ports
-netstat -tulpn | grep :80
-netstat -tulpn | grep :443
+### Rate Limiting Issues
 
-# Stop conflicting services or change ports in docker-compose.prod.yml
-```
+**Symptoms:** Legitimate requests are rate limited
 
----
+**Solutions:**
+1. Adjust rate limit settings in `backend/src/middleware/security.ts`
+2. Check Redis connection if using Redis for rate limiting
+3. Verify IP forwarding in Nginx configuration
 
 ## Security Checklist
 
-- [ ] Changed all default passwords
-- [ ] Generated strong JWT_SECRET (32+ characters)
-- [ ] Generated strong database password
-- [ ] Enabled HTTPS/SSL
-- [ ] Configured firewall (only ports 80, 443 open)
-- [ ] Set up regular backups
-- [ ] Enabled automatic security updates
-- [ ] Restricted database access (only from backend container)
-- [ ] Configured rate limiting
-- [ ] Set proper file permissions
+Before deploying to production:
 
----
+- [ ] All environment variables are set and secure
+- [ ] `JWT_SECRET` is a strong random string (32+ characters)
+- [ ] Database passwords are strong and unique
+- [ ] SSL/TLS certificates are configured
+- [ ] CORS is properly configured
+- [ ] Rate limiting is enabled
+- [ ] Security headers are set (via Nginx/Helmet)
+- [ ] Database backups are configured
+- [ ] Logging is configured and monitored
+- [ ] Health checks are working
+- [ ] Non-root users are used in containers
+- [ ] Secrets are not committed to git
 
-## Support & Resources
+## Monitoring
 
-- **Docker Docs**: https://docs.docker.com
-- **Let's Encrypt**: https://letsencrypt.org
-- **Nginx Docs**: https://nginx.org/en/docs
-- **GoDaddy DNS Help**: https://www.godaddy.com/help
+### Recommended Monitoring
 
----
+1. **Application Logs:** Use platform logging (Railway, Heroku, etc.)
+2. **Database Monitoring:** Monitor connection pool, query performance
+3. **Error Tracking:** Integrate Sentry or similar
+4. **Uptime Monitoring:** Use UptimeRobot or similar
+5. **Performance:** Monitor API response times and frontend load times
 
-## Next Steps
+### Log Locations
 
-After deployment:
+- **Docker:** `docker-compose logs [service-name]`
+- **Railway:** Dashboard → Service → Logs
+- **Heroku:** `heroku logs --tail -a [app-name]`
+- **Backend logs:** `/app/logs` (if configured)
 
-1. **Set up monitoring** (UptimeRobot, Pingdom)
-2. **Configure backups** (automated daily)
-3. **Set up alerts** (email/SMS for downtime)
-4. **Performance optimization** (CDN, caching)
-5. **Security hardening** (firewall, fail2ban)
+## Backup and Recovery
 
----
+### Database Backups
 
-**Questions?** Check logs, verify DNS, and ensure all environment variables are set correctly.
+```bash
+# Manual backup
+pg_dump $DATABASE_URL > backup-$(date +%Y%m%d).sql
 
+# Restore
+psql $DATABASE_URL < backup-20240101.sql
+```
+
+### Automated Backups
+
+Configure automated backups in your database provider:
+- **Railway:** Automatic daily backups
+- **Heroku:** Use Heroku Postgres backups addon
+- **AWS RDS:** Enable automated backups
+- **DigitalOcean:** Use managed database backups
+
+## Updates and Rollbacks
+
+### Updating Application
+
+1. **Pull latest changes:**
+```bash
+git pull origin main
+```
+
+2. **Rebuild and redeploy:**
+```bash
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+3. **Run migrations:**
+```bash
+docker-compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
+```
+
+### Rollback
+
+1. **Revert to previous version:**
+```bash
+git checkout <previous-commit>
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+2. **Or use platform-specific rollback:**
+- Railway: Dashboard → Deployments → Rollback
+- Heroku: `heroku releases:rollback -a [app-name]`
+
+## Support
+
+For issues or questions:
+1. Check logs first
+2. Review this deployment guide
+3. Check GitHub Issues
+4. Contact the development team

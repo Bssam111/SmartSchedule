@@ -18,10 +18,14 @@ model User {
   password    String
   universityId String?  @unique
   role        UserRole @default(STUDENT)
+  majorId     String?
+  currentLevel Int?     // 1-8 for students
+  requiresPasswordChange Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
+  major       Major?   @relation(fields: [majorId], references: [id])
   sections     Section[]
   preferences  Preference[]
   assignments  Assignment[]
@@ -29,6 +33,9 @@ model User {
   notifications Notification[]
   roles        Role[]
   authenticators Authenticator[]
+  reviewedAccessRequests AccessRequest[] @relation("AccessRequestReviewer")
+  studentProgress StudentProgress[]
+  grades        Grade[]
 
   @@map("users")
 }
@@ -64,6 +71,7 @@ model Course {
   name        String
   credits     Int
   levelId     String
+  courseType  CourseType @default(REQUIRED) // REQUIRED, UNIVERSITY_ELECTIVE, MATH_ELECTIVE, SCIENCE_ELECTIVE, DEPT_ELECTIVE
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -71,6 +79,15 @@ model Course {
   level       Level      @relation(fields: [levelId], references: [id])
   sections    Section[]
   assignments Assignment[]
+  prerequisites Prerequisite[] @relation("PrerequisiteCourse")
+  prerequisiteFor Prerequisite[] @relation("PrerequisiteFor")
+  corequisites Corequisite[] @relation("CorequisiteCourse")
+  corequisiteFor Corequisite[] @relation("CorequisiteFor")
+  planCourses  CourseInPlan[]
+  studentProgress StudentProgress[]
+  grades        Grade[]
+  electiveGroupId String?
+  electiveGroup ElectiveGroup? @relation(fields: [electiveGroupId], references: [id])
 
   @@map("courses")
 }
@@ -183,6 +200,7 @@ model Assignment {
   studentId String
   sectionId String
   courseId  String
+  status    EnrollmentStatus @default(ENROLLED) // ENROLLED, DROPPED, COMPLETED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -190,6 +208,7 @@ model Assignment {
   student User    @relation(fields: [studentId], references: [id])
   section Section @relation(fields: [sectionId], references: [id])
   course  Course  @relation(fields: [courseId], references: [id])
+  grade   Grade?
 
   @@unique([studentId, sectionId])
   @@map("assignments")
@@ -238,6 +257,32 @@ model Notification {
   @@map("notifications")
 }
 
+model AccessRequest {
+  id          String               @id @default(cuid())
+  fullName    String
+  email       String
+  desiredRole UserRole
+  majorId     String?
+  reason      String?
+  status      AccessRequestStatus  @default(PENDING)
+  decisionNote String?
+  reviewerId  String?
+  reviewer    User?                @relation("AccessRequestReviewer", fields: [reviewerId], references: [id])
+  major       Major?               @relation(fields: [majorId], references: [id])
+  lockedBy    String?
+  lockedAt    DateTime?
+  decisionAt  DateTime?
+  submittedIp String?
+  submittedUserAgent String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@map("access_requests")
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+}
+
 model Level {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -254,6 +299,13 @@ enum UserRole {
   STUDENT
   FACULTY
   COMMITTEE
+  ADMIN
+}
+
+enum AccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model SecurityLog {
@@ -268,4 +320,206 @@ model SecurityLog {
   timestamp DateTime @default(now())
 
   @@map("security_logs")
+}
+
+// Academic Plan System Models
+
+model Major {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users       User[]
+  accessRequests AccessRequest[]
+  academicPlans AcademicPlan[]
+
+  @@map("majors")
+}
+
+model AcademicPlan {
+  id          String   @id @default(cuid())
+  majorId     String
+  name        String
+  description String?
+  totalCredits Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  major       Major    @relation(fields: [majorId], references: [id], onDelete: Cascade)
+  courses     CourseInPlan[]
+  studentProgress StudentProgress[]
+
+  @@map("academic_plans")
+}
+
+model CourseInPlan {
+  id            String   @id @default(cuid())
+  planId        String
+  courseId      String
+  semester      Int      // 1-8
+  isRequired    Boolean  @default(true)
+  displayOrder  Int      // For visual ordering
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  plan          AcademicPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  course        Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, courseId])
+  @@map("course_in_plans")
+}
+
+model Prerequisite {
+  id          String   @id @default(cuid())
+  courseId    String   // Course that requires the prerequisite
+  prerequisiteCourseId String // Course that must be completed first
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  course      Course   @relation("PrerequisiteCourse", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisiteCourse Course @relation("PrerequisiteFor", fields: [prerequisiteCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, prerequisiteCourseId])
+  @@map("prerequisites")
+}
+
+model Corequisite {
+  id          String   @id @default(cuid())
+  courseId    String   // Course that requires the corequisite
+  corequisiteCourseId String // Course that must be taken together
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  course      Course   @relation("CorequisiteCourse", fields: [courseId], references: [id], onDelete: Cascade)
+  corequisiteCourse Course @relation("CorequisiteFor", fields: [corequisiteCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, corequisiteCourseId])
+  @@map("corequisites")
+}
+
+model ElectiveGroup {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique // UNIVERSITY, MATH_STATS, GENERAL_SCIENCE, DEPT_SWE
+  minCredits  Int      // Minimum credits required from this group
+  maxCredits  Int?     // Maximum credits allowed (null = unlimited)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  courses     Course[]
+
+  @@map("elective_groups")
+}
+
+model Semester {
+  id          String   @id @default(cuid())
+  number      Int      @unique // 1-8
+  name        String   @unique
+  isCurrent   Boolean  @default(false)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  registrationWindows RegistrationWindow[]
+
+  @@map("semesters")
+}
+
+model RegistrationWindow {
+  id          String   @id @default(cuid())
+  semesterId  String
+  startDate   DateTime
+  endDate     DateTime
+  isOpen      Boolean  @default(false)
+  allowAddDrop Boolean @default(true)
+  maxRoomCapacity Int  @default(40) // Committee can override
+  maxStudentCapacity Int @default(30) // Student limit per section
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  semester    Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+
+  @@map("registration_windows")
+}
+
+model Grade {
+  id          String   @id @default(cuid())
+  assignmentId String  @unique
+  studentId   String
+  courseId    String
+  numericGrade Int     // 0-100
+  letterGrade String?  // A+, A, B+, B, C+, C, D+, D, F
+  points      Float?   // GPA points (4.0, 3.5, etc.)
+  semester    Int      // 1-8
+  academicYear String? // e.g., "2024-2025"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  assignment  Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student     User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([courseId])
+  @@index([semester])
+  @@map("grades")
+}
+
+model StudentProgress {
+  id          String   @id @default(cuid())
+  studentId   String
+  planId      String
+  courseId    String
+  status      CourseStatus @default(NOT_TAKEN) // NOT_TAKEN, IN_PROGRESS, COMPLETED, FAILED
+  semesterTaken Int?
+  gradeId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  student     User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  plan        AcademicPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@index([planId])
+  @@map("student_progress")
+}
+
+// Enums
+enum CourseType {
+  REQUIRED
+  UNIVERSITY_ELECTIVE
+  MATH_ELECTIVE
+  SCIENCE_ELECTIVE
+  DEPT_ELECTIVE
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  DROPPED
+  COMPLETED
+  FAILED
+}
+
+enum CourseStatus {
+  NOT_TAKEN
+  IN_PROGRESS
+  COMPLETED
+  FAILED
 }

@@ -12,13 +12,26 @@ if (!process.env['DATABASE_URL']) {
 }
 
 // Prevent multiple instances of Prisma Client in development
-export const prisma = globalThis.__prisma || new PrismaClient({
+// Clear cached instance if Major model is missing (indicates Prisma Client was regenerated)
+let prismaInstance = globalThis.__prisma
+if (prismaInstance) {
+  // Check if Major model exists in cached instance
+  if (!('major' in prismaInstance)) {
+    console.log('🔄 Clearing cached Prisma Client (Major model missing)')
+    globalThis.__prisma = undefined
+    prismaInstance = undefined
+  }
+}
+
+export const prisma = prismaInstance || new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   datasources: {
     db: {
       url: process.env['DATABASE_URL']
     }
   }
+  // Note: Transaction timeouts are configured per-transaction, not globally
+  // See approveAccessRequest for transaction-specific timeout configuration
 })
 
 if (process.env.NODE_ENV !== 'production') {

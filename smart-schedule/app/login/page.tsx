@@ -37,14 +37,17 @@ export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    setWebauthnSupported(isWebAuthnSupported())
+    // Client-side only checks
+    if (typeof globalThis.window !== 'undefined') {
+      setWebauthnSupported(isWebAuthnSupported())
 
-    // Check if user just registered
-    const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.get('registered') === 'true') {
-      setRegistered(true)
-      // Clear the query parameter
-      window.history.replaceState({}, '', '/login')
+      // Check if user just registered
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('registered') === 'true') {
+        setRegistered(true)
+        // Clear the query parameter
+        window.history.replaceState({}, '', '/login')
+      }
     }
   }, [])
 
@@ -60,14 +63,30 @@ export default function LoginPage() {
       console.log('🔐 Login result:', result)
 
       if (result.success) {
+        console.log('🔐 Login successful, checking for password reset requirement')
+        
+        // Check if password reset is required (handled by AuthProvider, but check result too)
+        if ((result as any).requiresPasswordReset || (result as any).requiresPasswordChange) {
+          console.log('🔐 Password reset required, redirecting to reset-password')
+          router.push('/reset-password')
+          return
+        }
+        
         console.log('🔐 Login successful, redirecting based on user role')
         
         // Wait a moment for AuthProvider to update, then get user role
         await new Promise(resolve => setTimeout(resolve, 100))
         
-        // Get the user role from auth context or localStorage
-        const authState = JSON.parse(localStorage.getItem('smartSchedule_user') || '{}')
-        const userRole = (authState.role || authUser?.role || '').toUpperCase()
+        // Get the user role from auth context or localStorage (client-side only)
+        let userRole = (authUser?.role || '').toUpperCase()
+        if (typeof globalThis.window !== 'undefined') {
+          try {
+            const authState = JSON.parse(localStorage.getItem('smartSchedule_user') || '{}')
+            userRole = (authState.role || userRole).toUpperCase()
+          } catch {
+            // Ignore parse errors
+          }
+        }
 
         console.log('🔐 User role:', userRole)
         console.log('🔐 Auth user from context:', authUser)
@@ -82,6 +101,9 @@ export default function LoginPage() {
         } else if (userRole === 'COMMITTEE') {
           console.log('🔐 Redirecting to committee dashboard')
           router.push('/committee/dashboard')
+        } else if (userRole === 'ADMIN') {
+          console.log('🔐 Redirecting to admin dashboard')
+          router.push('/admin/dashboard')
         } else {
           console.log('🔐 Unknown role, redirecting to home:', userRole)
           // Fallback to home page
@@ -115,9 +137,11 @@ export default function LoginPage() {
 
       if (result.success && result.user) {
         console.log('🔐 Fingerprint authentication successful')
-        // Store user in localStorage
-        localStorage.setItem('smartSchedule_user', JSON.stringify(result.user))
-        localStorage.setItem('smartSchedule_auth', 'true')
+        // Store user in localStorage (client-side only)
+        if (typeof globalThis.window !== 'undefined') {
+          localStorage.setItem('smartSchedule_user', JSON.stringify(result.user))
+          localStorage.setItem('smartSchedule_auth', 'true')
+        }
 
         // Redirect based on role (backend returns uppercase)
         const userRole = result.user.role?.toUpperCase() || ''
@@ -208,7 +232,15 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Password</label>
+                  <Link
+                    href="/reset-password"
+                    className="text-sm text-blue-600 hover:text-blue-500 font-medium"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
                 <input
                   type="password"
                   value={password}

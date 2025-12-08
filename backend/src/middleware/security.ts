@@ -3,6 +3,23 @@ import rateLimit from 'express-rate-limit'
 import helmet from 'helmet'
 import { CustomError } from './errorHandler'
 
+const DEFAULT_ORIGINS = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:3002',
+  'http://127.0.0.1:3003',
+  'http://frontend-dev:3000'
+]
+
+const DEV_ORIGINS: string[] = Array.from(
+  new Set(DEFAULT_ORIGINS.filter((origin): origin is string => Boolean(origin)))
+)
+
 // Enhanced security headers middleware
 export const securityHeaders = helmet({
   crossOriginEmbedderPolicy: false,
@@ -12,7 +29,7 @@ export const securityHeaders = helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "http://localhost:3001", "http://localhost:3000", "ws://localhost:3002"],
+      connectSrc: ["'self'", ...DEV_ORIGINS, "ws://localhost:3002"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -34,13 +51,20 @@ export const securityHeaders = helmet({
 
 // Strict CORS configuration
 export const strictCors = (req: Request, res: Response, next: NextFunction) => {
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [process.env.FRONTEND_URL || 'http://localhost:3000']
+  const envOrigins = process.env.ALLOWED_ORIGINS
+    ?.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean) || []
+  const allowedOrigins = envOrigins.length > 0 ? envOrigins : DEV_ORIGINS
   const origin = req.headers.origin
+  const isDev = process.env.NODE_ENV === 'development'
+  const isLocalhostOrigin = origin ? /^http:\/\/(localhost|127\.0\.0\.1):\d+$/i.test(origin) : false
 
-  if (origin && allowedOrigins.includes(origin)) {
+  if (origin && (allowedOrigins.includes(origin) || (isDev && isLocalhostOrigin))) {
     res.setHeader('Access-Control-Allow-Origin', origin)
-  } else if (process.env.NODE_ENV === 'development') {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000')
+  } else if (!origin && isDev) {
+    // default to the first dev origin for non-browser tooling
+    res.setHeader('Access-Control-Allow-Origin', DEV_ORIGINS[0] || 'http://localhost:3000')
   }
 
   res.setHeader('Access-Control-Allow-Credentials', 'true')

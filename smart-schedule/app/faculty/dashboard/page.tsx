@@ -30,6 +30,7 @@ export default function FacultyDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentSemester, setCurrentSemester] = useState<{ name: string; academicYear: string; semesterNumber: number } | null>(null)
   // Get faculty ID from authenticated user (now maps to database ID)
   const facultyId = getCurrentUser()?.id
 
@@ -37,12 +38,41 @@ export default function FacultyDashboard() {
     // Only load assignments if auth is not loading, user is authenticated, and we have a faculty ID
     if (!authState.isLoading && authState.isAuthenticated && facultyId) {
       loadAssignments()
+      loadCurrentSemester()
     } else if (!authState.isLoading && !authState.isAuthenticated) {
       setLoading(false)
     } else if (!authState.isLoading && !facultyId) {
       setLoading(false)
     }
   }, [facultyId, authState.isLoading, authState.isAuthenticated])
+
+  const loadCurrentSemester = async () => {
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/semesters/current`, {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.data) {
+          const currentSem = data.data
+          setCurrentSemester({
+            name: `${currentSem.academicYear} - Semester ${currentSem.semesterNumber}`,
+            academicYear: currentSem.academicYear,
+            semesterNumber: currentSem.semesterNumber
+          })
+        } else {
+          setCurrentSemester(null)
+        }
+      } else {
+        setCurrentSemester(null)
+      }
+    } catch (error) {
+      console.error('Error loading current semester:', error)
+      setCurrentSemester(null)
+    }
+  }
 
   const loadAssignments = async () => {
     if (!facultyId) return
@@ -136,6 +166,16 @@ export default function FacultyDashboard() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {currentSemester && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center space-x-2">
+              <span className="font-medium text-gray-700">Current Semester:</span>
+              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded text-sm font-semibold">
+                {currentSemester.name}
+              </span>
+            </div>
+          </div>
+        )}
         <div className="flex gap-8">
           {/* Sidebar */}
           <aside className="w-64 bg-white rounded-lg shadow-sm p-6 h-fit">
@@ -150,6 +190,9 @@ export default function FacultyDashboard() {
               </button>
               <Link href="/faculty/assignments" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
                 My Assignments
+              </Link>
+              <Link href="/faculty/grades" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
+                Grade Entry
               </Link>
               <Link href="/settings" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
                 Settings

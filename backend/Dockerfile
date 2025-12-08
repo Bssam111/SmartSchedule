@@ -7,17 +7,18 @@
 FROM node:20-alpine AS deps
 LABEL maintainer="SmartSchedule Team"
 
-# Install system dependencies for Prisma
-RUN apk add --no-cache libc6-compat openssl
+# Install system dependencies for Prisma and health checks
+RUN apk add --no-cache libc6-compat openssl curl
 
 WORKDIR /app
 
 # Copy dependency manifests
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY healthcheck.js ./healthcheck.js
 
-# Install dependencies (including devDependencies for build)
-RUN npm ci
+# Install ALL dependencies (including nodemailer and other runtime deps)
+RUN npm ci --include=dev
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -32,8 +33,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/prisma ./prisma
 
-# Copy source code
+# Copy source code and scripts (for potential use, though kill-port won't be called in Docker)
 COPY . .
+# Note: scripts/kill-port.js is included but won't be used in Docker (dev:docker script doesn't call it)
 
 # Note: Skip TypeScript compilation - will use tsx in production
 # This avoids build-time type errors while maintaining functionality

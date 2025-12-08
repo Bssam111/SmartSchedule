@@ -4,9 +4,10 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from './AuthProvider'
 
+type RoleType = 'student' | 'faculty' | 'committee' | 'admin'
 interface ProtectedRouteProps {
   children: React.ReactNode
-  requiredRole?: 'student' | 'faculty' | 'committee'
+  requiredRole?: RoleType | RoleType[]
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
@@ -20,26 +21,43 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     }
 
     if (!loading && authState.isAuthenticated && requiredRole) {
-      const userRole = user?.role?.toLowerCase() || ''
-      const normalizedRequiredRole = requiredRole.toLowerCase()
+      // Backend returns uppercase roles (STUDENT, FACULTY, COMMITTEE)
+      const userRole = (user?.role || '').toUpperCase()
 
       // Map backend roles to frontend roles
       const roleMap: Record<string, string> = {
-        'student': 'student',
-        'faculty': 'faculty',
-        'committee': 'committee',
+        'STUDENT': 'STUDENT',
+        'FACULTY': 'FACULTY',
+        'COMMITTEE': 'COMMITTEE',
+        'ADMIN': 'ADMIN',
       }
 
       const userRoleNormalized = roleMap[userRole] || userRole
       
-      if (userRoleNormalized !== normalizedRequiredRole) {
+      // Handle both single role string and array of roles
+      const requiredRoles = Array.isArray(requiredRole) 
+        ? requiredRole.map(r => r.toUpperCase())
+        : [requiredRole.toUpperCase()]
+      
+      // Admin has access to all routes
+      if (userRole === 'ADMIN') {
+        // Admin can access any route, so allow it
+        return
+      }
+      
+      // Check if user's role is in the list of required roles
+      const hasAccess = requiredRoles.includes(userRoleNormalized)
+      
+      if (!hasAccess) {
         // Redirect to appropriate dashboard based on user's actual role
-        if (userRole === 'student' || userRoleNormalized === 'student') {
+        if (userRole === 'STUDENT' || userRoleNormalized === 'STUDENT') {
           router.push('/student/dashboard')
-        } else if (userRole === 'faculty' || userRoleNormalized === 'faculty') {
+        } else if (userRole === 'FACULTY' || userRoleNormalized === 'FACULTY') {
           router.push('/faculty/dashboard')
-        } else if (userRole === 'committee' || userRoleNormalized === 'committee') {
+        } else if (userRole === 'COMMITTEE' || userRoleNormalized === 'COMMITTEE') {
           router.push('/committee/dashboard')
+        } else if (userRole === 'ADMIN' || userRoleNormalized === 'ADMIN') {
+          router.push('/admin/dashboard')
         } else {
           router.push('/')
         }
@@ -59,21 +77,37 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   if (requiredRole) {
-    const userRole = user?.role?.toLowerCase() || ''
-    const normalizedRequiredRole = requiredRole.toLowerCase()
+    // Backend returns uppercase roles (STUDENT, FACULTY, COMMITTEE)
+    const userRole = (user?.role || '').toUpperCase()
     const roleMap: Record<string, string> = {
-      'student': 'student',
-      'faculty': 'faculty',
-      'committee': 'committee',
+      'STUDENT': 'STUDENT',
+      'FACULTY': 'FACULTY',
+      'COMMITTEE': 'COMMITTEE',
+      'ADMIN': 'ADMIN',
     }
     const userRoleNormalized = roleMap[userRole] || userRole
 
-    if (userRoleNormalized !== normalizedRequiredRole) {
+    // Handle both single role string and array of roles
+    const requiredRoles = Array.isArray(requiredRole) 
+      ? requiredRole.map(r => r.toUpperCase())
+      : [requiredRole.toUpperCase()]
+
+    // Admin has access to all routes
+    if (userRole === 'ADMIN') {
+      return <>{children}</> // Admin can access any route
+    }
+
+    // Check if user's role is in the list of required roles
+    const hasAccess = requiredRoles.includes(userRoleNormalized)
+    
+    if (!hasAccess) {
       return null // Will redirect in useEffect
     }
   }
 
   return <>{children}</>
 }
+
+
 
 

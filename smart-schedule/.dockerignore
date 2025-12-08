@@ -1,0 +1,34 @@
+# Exclude node_modules from Docker build context
+node_modules
+npm-debug.log
+.next
+.env
+.env.local
+.env.production
+.env*.local
+
+# Exclude OS files
+.DS_Store
+Thumbs.db
+
+# Exclude IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Exclude git files
+.git
+.gitignore
+
+# Exclude test files
+coverage
+.nyc_output
+
+# Exclude build outputs
+dist
+build
+
+
+
+

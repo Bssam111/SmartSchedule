@@ -9,7 +9,14 @@ const router = Router()
 // GET /api/sections
 router.get('/', async (req, res, next) => {
   try {
+    const { instructorId, courseId, semesterId } = req.query
+
     const sections = await prisma.section.findMany({
+      where: {
+        ...(instructorId && typeof instructorId === 'string' ? { instructorId } : {}),
+        ...(courseId && typeof courseId === 'string' ? { courseId } : {}),
+        ...(semesterId && typeof semesterId === 'string' ? { semesterId } : {})
+      },
       include: {
         course: true,
         instructor: {
@@ -314,20 +321,39 @@ router.put('/:id', authenticateToken, requireFacultyOrCommittee, async (req: Aut
       throw new CustomError('Section not found', 404)
     }
 
-    // Update section
+    // Verify instructor if provided
+    if (sectionData.instructorId) {
+      const instructor = await prisma.user.findUnique({
+        where: { id: sectionData.instructorId }
+      })
+
+      if (!instructor || instructor.role !== 'FACULTY') {
+        throw new CustomError('Invalid instructor', 400)
+      }
+    }
+
+    // Update section (exclude courseId from updates as it shouldn't change)
+    const { courseId, meetings, instructorId, ...updateData } = sectionData
+    const updatePayload: any = {
+      ...updateData,
+      meetings: meetings ? {
+        deleteMany: {},
+        create: meetings.map(meeting => ({
+          dayOfWeek: meeting.dayOfWeek,
+          startTime: meeting.startTime,
+          endTime: meeting.endTime
+        }))
+      } : undefined
+    }
+    
+    // Handle instructorId separately - can be null to remove instructor
+    if (instructorId !== undefined) {
+      updatePayload.instructorId = instructorId
+    }
+    
     const section = await prisma.section.update({
       where: { id },
-      data: {
-        ...sectionData,
-        meetings: sectionData.meetings ? {
-          deleteMany: {},
-          create: sectionData.meetings.map(meeting => ({
-            dayOfWeek: meeting.dayOfWeek,
-            startTime: meeting.startTime,
-            endTime: meeting.endTime
-          }))
-        } : undefined
-      },
+      data: updatePayload,
       include: {
         course: true,
         instructor: {
