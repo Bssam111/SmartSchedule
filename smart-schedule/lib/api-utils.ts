@@ -78,24 +78,38 @@ export function getApiBaseUrlForBrowser(): string {
     // Try NEXT_PUBLIC_API_BASE_URL first (new standard)
     const envUrl = sanitizeUrl(process.env['NEXT_PUBLIC_API_BASE_URL'])
     if (envUrl) {
-      // Replace any Docker service names with localhost for browser
+      // Replace any Docker service names or Railway internal URLs with public URLs for browser
       let browserUrl = envUrl
         .replace(/backend-dev:3001/g, 'localhost:3001')
         .replace(/backend:3001/g, 'localhost:3001')
         .replace(/http:\/\/backend-dev\/api/g, 'http://localhost:3001/api')
         .replace(/http:\/\/backend\/api/g, 'http://localhost:3001/api')
+        // Replace Railway internal URLs (they don't work in browser)
+        .replace(/\.railway\.internal/g, '.up.railway.app')
+        .replace(/^([^:]+)\.railway\.internal/, 'https://$1-production.up.railway.app')
+      // Ensure it has https:// if it's a Railway URL
+      if (browserUrl.includes('.railway.app') && !browserUrl.startsWith('http')) {
+        browserUrl = `https://${browserUrl}`
+      }
       return browserUrl.endsWith('/api') ? browserUrl : `${browserUrl}/api`
     }
     
     // Fallback to legacy NEXT_PUBLIC_API_URL
     const legacyUrl = sanitizeUrl(process.env['NEXT_PUBLIC_API_URL'])
     if (legacyUrl) {
-      // Replace any Docker service names with localhost for browser
-      const browserUrl = legacyUrl
+      // Replace any Docker service names or Railway internal URLs with public URLs for browser
+      let browserUrl = legacyUrl
         .replace(/backend-dev:3001/g, 'localhost:3001')
         .replace(/backend:3001/g, 'localhost:3001')
         .replace(/http:\/\/backend-dev\/api/g, 'http://localhost:3001/api')
         .replace(/http:\/\/backend\/api/g, 'http://localhost:3001/api')
+        // Replace Railway internal URLs (they don't work in browser)
+        .replace(/\.railway\.internal/g, '.up.railway.app')
+        .replace(/^([^:]+)\.railway\.internal/, 'https://$1-production.up.railway.app')
+      // Ensure it has https:// if it's a Railway URL
+      if (browserUrl.includes('.railway.app') && !browserUrl.startsWith('http')) {
+        browserUrl = `https://${browserUrl}`
+      }
       return browserUrl
     }
     
