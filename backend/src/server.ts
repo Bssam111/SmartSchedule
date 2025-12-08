@@ -227,7 +227,11 @@ if (shouldStart) {
   httpServer = createServer(app)
   
   // Determine host - 0.0.0.0 for Docker, localhost for local dev
-  const host = process.env.NODE_ENV === 'production' || process.env.DOCKER_ENV === 'true' 
+  // Always use 0.0.0.0 in Railway or Docker environments
+  // Railway sets RAILWAY_ENVIRONMENT, and we should listen on all interfaces
+  const host = process.env.NODE_ENV === 'production' || 
+                process.env.DOCKER_ENV === 'true' || 
+                process.env.RAILWAY_ENVIRONMENT !== undefined
     ? '0.0.0.0' 
     : 'localhost'
   
