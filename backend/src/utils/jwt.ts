@@ -50,9 +50,53 @@ export const setTokenCookies = (res: Response, accessToken: string, refreshToken
   // For localhost: secure=false, sameSite='lax'
   // For production: secure=true, sameSite='none' (for cross-origin) or 'lax' (same-origin)
   const secure = isLocalhost ? false : (process.env.SESSION_COOKIE_SECURE === 'true' || isProduction)
-  const sameSite = isLocalhost 
+  let sameSite: 'lax' | 'none' | 'strict' = isLocalhost 
     ? 'lax' 
     : ((process.env.SESSION_COOKIE_SAMESITE as 'lax' | 'none' | 'strict') || (isProduction ? 'none' : 'lax'))
+  
+  // CRITICAL: When sameSite is 'none', secure MUST be true (browser requirement)
+  if (sameSite === 'none' && !secure) {
+    console.warn('[Auth] ⚠️ sameSite="none" requires secure=true. Forcing secure=true.')
+    // Force secure to true when sameSite is none
+    const forcedSecure = true
+    const cookieOptions: {
+      httpOnly: boolean
+      secure: boolean
+      sameSite: 'lax' | 'none' | 'strict'
+      maxAge: number
+      path: string
+      domain?: string
+    } = {
+      httpOnly: true,
+      secure: forcedSecure,
+      sameSite,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    }
+    
+    // Get domain from environment variable if set
+    const domain = process.env.SESSION_COOKIE_DOMAIN || undefined
+    if (domain) {
+      cookieOptions.domain = domain
+    }
+    
+    res.cookie('accessToken', accessToken, cookieOptions)
+    res.cookie('refreshToken', refreshToken, {
+      ...cookieOptions,
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    })
+    
+    console.log('[Auth] ✅ Cookies set (forced secure):', { 
+      secure: forcedSecure, 
+      sameSite, 
+      path: '/', 
+      httpOnly: true, 
+      domain: domain || 'current domain',
+      isProduction,
+      nodeEnv: process.env.NODE_ENV
+    })
+    return
+  }
   
   // Get domain from environment variable if set (for cross-domain cookies in production)
   // If not set, cookies will be set for the current domain
@@ -89,9 +133,18 @@ export const setTokenCookies = (res: Response, accessToken: string, refreshToken
   }
   res.cookie('refreshToken', refreshToken, refreshCookieOptions)
   
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Auth] Cookies set:', { secure, sameSite, path: '/', httpOnly: true, domain: domain || 'current domain' })
-  }
+  // Always log in production to debug cookie issues
+  console.log('[Auth] ✅ Cookies set:', { 
+    secure, 
+    sameSite, 
+    path: '/', 
+    httpOnly: true, 
+    domain: domain || 'current domain',
+    isProduction,
+    nodeEnv: process.env.NODE_ENV,
+    cookieSecureEnv: process.env.SESSION_COOKIE_SECURE,
+    cookieSameSiteEnv: process.env.SESSION_COOKIE_SAMESITE
+  })
 }
 
 export const clearTokenCookies = (res: Response) => {
