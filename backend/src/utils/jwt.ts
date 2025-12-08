@@ -44,8 +44,11 @@ export const verifyToken = (token: string): TokenPayload => {
 }
 
 export const setTokenCookies = (res: Response, accessToken: string, refreshToken: string) => {
-  const isProduction = process.env.NODE_ENV === 'production'
-  const isLocalhost = process.env.NODE_ENV === 'development' || !isProduction
+  // Check if we're in production OR if we're on Railway (which should use production settings)
+  const isProduction = process.env.NODE_ENV === 'production' || 
+                       process.env.RAILWAY_ENVIRONMENT === 'production' ||
+                       !!process.env.RAILWAY_SERVICE_NAME
+  const isLocalhost = process.env.NODE_ENV === 'development' && !isProduction
   
   // For localhost: secure=false, sameSite='lax'
   // For production: secure=true, sameSite='none' (for cross-origin) or 'lax' (same-origin)

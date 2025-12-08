@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cookie Test Script</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Cookie Authentication Test</h1>
+    
+    <div class="test-section info">
+        <h3>Configuration</h3>
+        <p><strong>Backend URL:</strong> <input type="text" id="backendUrl" value="https://your-backend.up.railway.app" style="width: 400px;"></p>
+        <p><strong>Frontend URL:</strong> <span id="frontendUrl"></span></p>
+        <button onclick="updateConfig()">Update Config</button>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 1: Check Current Cookies</h3>
+        <button onclick="testCurrentCookies()">Check Cookies</button>
+        <pre id="cookieResult">Click button to test...</pre>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Test Login</h3>
+        <p>
+            <label>Email: <input type="email" id="email" value="admin@ksu.edu.sa"></label><br>
+            <label>Password: <input type="password" id="password" value="admin123456"></label>
+        </p>
+        <button onclick="testLogin()">Test Login</button>
+        <pre id="loginResult">Click button to test...</pre>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Check Cookies After Login</h3>
+        <button onclick="testCookiesAfterLogin()">Check Cookies</button>
+        <pre id="cookieAfterResult">Click button to test...</pre>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 4: Test Backend Cookie Endpoint</h3>
+        <button onclick="testBackendCookies()">Test Backend</button>
+        <pre id="backendCookieResult">Click button to test...</pre>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 5: Test Authenticated Endpoint</h3>
+        <button onclick="testAuthenticated()">Test /api/users</button>
+        <pre id="authResult">Click button to test...</pre>
+    </div>
+
+    <script>
+        const backendUrl = document.getElementById('backendUrl').value;
+        document.getElementById('frontendUrl').textContent = window.location.origin;
+
+        function updateConfig() {
+            window.backendUrl = document.getElementById('backendUrl').value;
+            alert('Backend URL updated to: ' + window.backendUrl);
+        }
+
+        function testCurrentCookies() {
+            const result = {
+                documentCookie: document.cookie,
+                cookieCount: document.cookie.split(';').filter(c => c.trim()).length,
+                localStorage: {
+                    user: localStorage.getItem('smartSchedule_user'),
+                    token: localStorage.getItem('smartSchedule_token'),
+                    auth: localStorage.getItem('smartSchedule_auth')
+                }
+            };
+            document.getElementById('cookieResult').textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const backendUrl = document.getElementById('backendUrl').value;
+            const apiUrl = backendUrl.endsWith('/api') ? backendUrl : backendUrl + '/api';
+            
+            document.getElementById('loginResult').textContent = 'Logging in...';
+            
+            try {
+                const response = await fetch(`${apiUrl}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                const headers = {};
+                response.headers.forEach((value, key) => {
+                    headers[key] = value;
+                });
+
+                const result = {
+                    status: response.status,
+                    ok: response.ok,
+                    headers: headers,
+                    data: data,
+                    cookiesAfter: document.cookie
+                };
+
+                document.getElementById('loginResult').textContent = JSON.stringify(result, null, 2);
+                
+                if (response.ok && data.success) {
+                    document.getElementById('loginResult').parentElement.className = 'test-section success';
+                } else {
+                    document.getElementById('loginResult').parentElement.className = 'test-section error';
+                }
+            } catch (error) {
+                document.getElementById('loginResult').textContent = 'Error: ' + error.message;
+                document.getElementById('loginResult').parentElement.className = 'test-section error';
+            }
+        }
+
+        function testCookiesAfterLogin() {
+            const result = {
+                documentCookie: document.cookie,
+                cookieCount: document.cookie.split(';').filter(c => c.trim()).length,
+                cookies: document.cookie.split(';').map(c => c.trim()),
+                localStorage: {
+                    user: localStorage.getItem('smartSchedule_user'),
+                    token: localStorage.getItem('smartSchedule_token'),
+                    auth: localStorage.getItem('smartSchedule_auth')
+                }
+            };
+            document.getElementById('cookieAfterResult').textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function testBackendCookies() {
+            const backendUrl = document.getElementById('backendUrl').value;
+            const apiUrl = backendUrl.endsWith('/api') ? backendUrl : backendUrl + '/api';
+            
+            document.getElementById('backendCookieResult').textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(`${apiUrl}/health/test-cookies`, {
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                document.getElementById('backendCookieResult').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.cookies && data.cookies.hasAccessToken) {
+                    document.getElementById('backendCookieResult').parentElement.className = 'test-section success';
+                } else {
+                    document.getElementById('backendCookieResult').parentElement.className = 'test-section error';
+                }
+            } catch (error) {
+                document.getElementById('backendCookieResult').textContent = 'Error: ' + error.message;
+                document.getElementById('backendCookieResult').parentElement.className = 'test-section error';
+            }
+        }
+
+        async function testAuthenticated() {
+            const backendUrl = document.getElementById('backendUrl').value;
+            const apiUrl = backendUrl.endsWith('/api') ? backendUrl : backendUrl + '/api';
+            
+            document.getElementById('authResult').textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(`${apiUrl}/users`, {
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                const result = {
+                    status: response.status,
+                    ok: response.ok,
+                    data: data
+                };
+
+                document.getElementById('authResult').textContent = JSON.stringify(result, null, 2);
+                
+                if (response.ok && data.success) {
+                    document.getElementById('authResult').parentElement.className = 'test-section success';
+                } else {
+                    document.getElementById('authResult').parentElement.className = 'test-section error';
+                }
+            } catch (error) {
+                document.getElementById('authResult').textContent = 'Error: ' + error.message;
+                document.getElementById('authResult').parentElement.className = 'test-section error';
+            }
+        }
+
+        // Auto-update frontend URL
+        window.backendUrl = backendUrl;
+    </script>
+</body>
+</html>
+
