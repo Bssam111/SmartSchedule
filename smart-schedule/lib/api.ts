@@ -291,7 +291,7 @@ class ApiClient {
   }
 
   async checkOTPStatus(email: string) {
-    return this.request(`/otp/status?email=${encodeURIComponent(email)}`)
+    return this.request<{ verified: boolean }>(`/otp/status?email=${encodeURIComponent(email)}`)
   }
 
   // Majors endpoint

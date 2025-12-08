@@ -17,7 +17,7 @@ interface CourseInPlan {
     code: string
     name: string
     credits: number
-    courseType: string
+    courseType: 'REQUIRED' | 'UNIVERSITY_ELECTIVE' | 'MATH_ELECTIVE' | 'SCIENCE_ELECTIVE' | 'DEPT_ELECTIVE'
     prerequisites?: Array<{ prerequisiteCourse: { code: string; name: string } }>
     corequisites?: Array<{ corequisiteCourse: { code: string; name: string } }>
     electiveGroup?: { name: string; code: string }
