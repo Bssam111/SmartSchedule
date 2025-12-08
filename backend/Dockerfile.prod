@@ -105,7 +105,7 @@ RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
     echo 'MAX_RETRIES=30' >> /app/entrypoint.sh && \
     echo 'RETRY_COUNT=0' >> /app/entrypoint.sh && \
     echo 'while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do' >> /app/entrypoint.sh && \
-    echo '  if npx prisma db execute --stdin <<< "SELECT 1" > /dev/null 2>&1; then' >> /app/entrypoint.sh && \
+    echo '  if echo "SELECT 1" | npx prisma db execute --stdin > /dev/null 2>&1; then' >> /app/entrypoint.sh && \
     echo '    echo "✅ Database connection successful"' >> /app/entrypoint.sh && \
     echo '    break' >> /app/entrypoint.sh && \
     echo '  fi' >> /app/entrypoint.sh && \
