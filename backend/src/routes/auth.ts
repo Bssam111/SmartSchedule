@@ -148,7 +148,23 @@ router.post('/login', async (req, res, next) => {
     })
 
     // Set cookies
+    console.log('[Login] 🔐 Setting cookies for user:', user.email)
+    console.log('[Login] 🔐 Request origin:', req.headers.origin)
+    console.log('[Login] 🔐 Request headers:', {
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+      'user-agent': req.headers['user-agent']?.substring(0, 50)
+    })
     setTokenCookies(res, accessToken, refreshToken)
+    
+    // Log cookie headers that were set
+    const setCookieHeaders = res.getHeader('Set-Cookie')
+    console.log('[Login] 🔐 Set-Cookie headers:', setCookieHeaders)
+    console.log('[Login] 🔐 Response headers:', {
+      'Access-Control-Allow-Origin': res.getHeader('Access-Control-Allow-Origin'),
+      'Access-Control-Allow-Credentials': res.getHeader('Access-Control-Allow-Credentials'),
+      'Set-Cookie': setCookieHeaders ? (Array.isArray(setCookieHeaders) ? setCookieHeaders.length : 1) + ' cookie(s)' : 'none'
+    })
 
     res.json({
       success: true,

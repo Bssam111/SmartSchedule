@@ -60,11 +60,29 @@ export const strictCors = (req: Request, res: Response, next: NextFunction) => {
   const isDev = process.env.NODE_ENV === 'development'
   const isLocalhostOrigin = origin ? /^http:\/\/(localhost|127\.0\.0\.1):\d+$/i.test(origin) : false
 
+  // Log CORS decisions for debugging
+  if (origin && !allowedOrigins.includes(origin) && !(isDev && isLocalhostOrigin)) {
+    console.warn('[CORS] ⚠️ Origin not allowed:', {
+      origin,
+      allowedOrigins,
+      isDev,
+      isLocalhostOrigin,
+      envOrigins
+    })
+  }
+
   if (origin && (allowedOrigins.includes(origin) || (isDev && isLocalhostOrigin))) {
     res.setHeader('Access-Control-Allow-Origin', origin)
+    if (process.env.NODE_ENV === 'production') {
+      console.log('[CORS] ✅ Allowing origin:', origin)
+    }
   } else if (!origin && isDev) {
     // default to the first dev origin for non-browser tooling
     res.setHeader('Access-Control-Allow-Origin', DEV_ORIGINS[0] || 'http://localhost:3000')
+  } else if (origin) {
+    // In production, if origin is not allowed, don't set CORS headers
+    // This will cause browser to block the request
+    console.error('[CORS] ❌ Blocking request from unauthorized origin:', origin)
   }
 
   res.setHeader('Access-Control-Allow-Credentials', 'true')

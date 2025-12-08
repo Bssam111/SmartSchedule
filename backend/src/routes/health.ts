@@ -32,6 +32,32 @@ router.get('/healthz', (_req, res) => {
   })
 })
 
+// Cookie test endpoint - helps diagnose cookie issues
+router.get('/test-cookies', (req, res) => {
+  const cookies = req.cookies || {}
+  const cookieKeys = Object.keys(cookies)
+  
+  res.json({
+    success: true,
+    cookies: {
+      count: cookieKeys.length,
+      keys: cookieKeys,
+      hasAccessToken: !!cookies.accessToken,
+      hasRefreshToken: !!cookies.refreshToken,
+      allCookies: cookieKeys.reduce((acc, key) => {
+        acc[key] = cookies[key] ? 'present' : 'missing'
+        return acc
+      }, {} as Record<string, string>)
+    },
+    headers: {
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+      cookie: req.headers.cookie ? 'present' : 'missing'
+    },
+    timestamp: new Date().toISOString()
+  })
+})
+
 export { router as healthRoutes }
 
 
